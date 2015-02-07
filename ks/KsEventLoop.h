@@ -53,8 +53,6 @@ namespace ks
         void ProcessEvents();
         void PostEvent(unique_ptr<Event> event);
         void PostStopEvent();
-        void WaitUntilStarted();
-        void WaitUntilStopped();
 
     private:
         void waitUntilStarted();
