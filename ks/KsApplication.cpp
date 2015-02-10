@@ -23,7 +23,7 @@ namespace ks
         Object(make_shared<EventLoop>()),
         m_sys_thread_id(std::this_thread::get_id())
     {
-        LOG.Info() << "Hello Application!";
+        // empty
     }
 
     Application::~Application()

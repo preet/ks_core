@@ -330,6 +330,8 @@ namespace ks
             std::lock_guard<std::mutex> lock(m_mutex);
 
             if(!(m_started && m_impl->m_asio_work)) {
+                LOG.Warn() << "EventLoop: ProcessEvents called but "
+                              "event loop has not been started";
                 return;
             }
         }
