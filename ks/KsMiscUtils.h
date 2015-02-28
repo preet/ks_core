@@ -56,8 +56,12 @@ namespace ks
         return num;
     }
 
-    inline std::string ConvBoolToString(bool val)
+    inline std::string ConvBoolToString(bool val, bool single_letter=false)
     {
+        if(single_letter) {
+            return (val) ? "F" : "F";
+        }
+
         return (val) ? "TRUE" : "FALSE";
     }
 

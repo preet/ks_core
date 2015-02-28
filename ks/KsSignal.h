@@ -39,6 +39,16 @@ namespace ks
         BlockingQueued
     };
 
+    namespace signal_detail
+    {
+        // connection id
+        extern Id g_cid_counter;
+        extern std::mutex g_cid_mutex;
+
+        Id genId();
+
+    } // signal_detail
+
     template<typename... Args>
     class Signal final
     {
@@ -59,7 +69,7 @@ namespace ks
 
         ~Signal()
         {
-
+            // empty
         }
 
         // NOTE: SlotArgs is a separate template parameter
@@ -90,7 +100,7 @@ namespace ks
             std::lock_guard<std::mutex> lock(m_connection_mutex);
             weak_ptr<T> rcvr_weak_ptr(receiver);
 
-            auto id = genId();
+            auto id = signal_detail::genId();
             m_list_connections.emplace_back(
                         Connection{
                             id,
@@ -118,6 +128,56 @@ namespace ks
                 return true;
             }
             return false;
+        }
+
+        void BlockingEmit(Args const &... args)
+        {
+            std::lock_guard<std::mutex> lock(m_connection_mutex);
+
+            uint expired_count=0;
+
+            for(auto &connection : m_list_connections) {
+                auto receiver = connection.receiver.lock();
+                if(receiver) {
+                    // post the slot to the receivers thread
+                    // and block until its invoked
+                    bool invoked = false;
+                    std::mutex invoked_mutex;
+                    std::condition_variable invoked_cv;
+
+                    unique_ptr<Event> event(new BlockingSlotEvent(
+                        std::bind(connection.slot,args...),
+                        &invoked,
+                        &invoked_mutex,
+                        &invoked_cv));
+
+                    std::unique_lock<std::mutex> invoked_lock(invoked_mutex);
+                    receiver->GetEventLoop()->PostEvent(std::move(event));
+
+                    while(!invoked) {
+                        invoked_cv.wait(invoked_lock);
+                    }
+                }
+                else {
+                    // If the receiver for this connection has been
+                    // destroyed, mark the connection as expired
+                    expired_count++;
+                }
+            }
+
+            // Remove any expired connections
+            if(expired_count > 0) {
+                auto remove_begin = std::remove_if(
+                            m_list_connections.begin(),
+                            m_list_connections.end(),
+                            [](Connection const &connection) {
+                                return (connection.receiver.expired());
+                            });
+
+                m_list_connections.erase(
+                            remove_begin,
+                            m_list_connections.end());
+            }
         }
 
         void Emit(Args const &... args)
@@ -203,6 +263,13 @@ namespace ks
             return false;
         }
 
+        uint GetConnectionCount()
+        {
+            std::lock_guard<std::mutex> lock(m_connection_mutex);
+
+            return m_list_connections.size();
+        }
+
     private:
         void directInvoke(Args... args, Connection &connection)
         {
@@ -228,18 +295,7 @@ namespace ks
         // Connections
         std::mutex m_connection_mutex;
         std::vector<Connection> m_list_connections;
-
-        static std::atomic<Id> s_connection_id_counter;
-        static Id genId() {
-            Id id = s_connection_id_counter;
-            s_connection_id_counter++;
-            return id;
-        }
     };
-
-    // TODO do we need this stuff anymore?
-    template<typename... Args>
-    std::atomic<Id> Signal<Args...>::s_connection_id_counter(0);
 
     // NOTE: --- start bug workaround ---
     // For Signal::Emit(...)

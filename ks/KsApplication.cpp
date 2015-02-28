@@ -73,4 +73,9 @@ namespace ks
             SignalStartCleanup.Emit();
         }
     }
+
+    void Application::init()
+    {
+
+    }
 } // ks

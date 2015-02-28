@@ -24,10 +24,13 @@ namespace ks
 {
     class Application : public Object
     {
+        friend class ObjectBuilder;
+        typedef Object base_type;
+
     public:
-        // * must be constructed from the main thread!
-        Application();
-        virtual ~Application();
+        ~Application();
+
+        // TODO get rid of this cleanup stuff
 
         // * adds @obj to a list of objects that the application
         //   will wait on for a 'finished clean up' signal before
@@ -60,6 +63,9 @@ namespace ks
         Signal<> SignalStartCleanup;
 
     protected:
+        // * must be constructed from the main thread!
+        Application();
+
         // * should be called to initiate a clean exit
         // * will call SignalStartCleanup and quit()
         //   as necessary
@@ -73,6 +79,8 @@ namespace ks
         std::vector<shared_ptr<Object>> m_list_cleanup_objs;
 
     private:
+        void init();
+
         std::thread::id m_sys_thread_id;
     };
 

@@ -24,19 +24,13 @@ namespace ks
 {
     class Timer : public Object
     {
+        friend class ObjectBuilder;
+        typedef Object base_type;
+
         friend class TimeoutHandler;
         friend class EventHandler;
 
     public:
-        Timer(shared_ptr<EventLoop> event_loop) :
-            Object(event_loop),
-            m_interval_ms(0),
-            m_repeating(false),
-            m_active(false)
-        {
-
-        }
-
         ~Timer()
         {
             Stop();
@@ -90,7 +84,22 @@ namespace ks
 
         Signal<> SignalTimeout;
 
+    protected:
+        Timer(shared_ptr<EventLoop> event_loop) :
+            Object(event_loop),
+            m_interval_ms(0),
+            m_repeating(false),
+            m_active(false)
+        {
+
+        }
+
     private:
+        void init()
+        {
+
+        }
+
         std::chrono::milliseconds m_interval_ms;
         bool m_repeating;
         std::atomic<bool> m_active;

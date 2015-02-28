@@ -19,11 +19,13 @@ SOURCES += \
     $${PATH_KS_CORE}/KsLog.cpp \
     $${PATH_KS_CORE}/KsEventLoop.cpp \
     $${PATH_KS_CORE}/KsObject.cpp \
+    $${PATH_KS_CORE}/KsSignal.cpp \
     $${PATH_KS_CORE}/KsTimer.cpp \
     $${PATH_KS_CORE}/KsApplication.cpp
 
 # thirdparty
 include($${PATH_KS_CORE}/thirdparty/asio/asio.pri)
+include($${PATH_KS_CORE}/thirdparty/lodepng/lodepng.pri)
 
 # need these flags for gcc 4.8.x bug for threads
 QMAKE_LFLAGS += -Wl,--no-as-needed

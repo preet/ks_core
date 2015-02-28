@@ -23,7 +23,26 @@
 #include <type_traits>
 #include <utility>
 
-// Convenience types
+/// \namespace ks
+/// * The main namespace for lib ks
+/// * Contains helper utils and convenience types in addition
+///   to core classes
+/// * Of special note is that the ks namespace includes:
+///	\code
+///	using std::shared_ptr;
+///	using std::unique_ptr;
+///	using std::weak_ptr;
+///	using std::make_shared;
+/// \endcode
+/// * This allows the use of <memory> types without bringing
+///   in the std:: namespace. Code in the ks namespace will
+///   often look like:
+///	\code
+///	namespace ks {
+///		shared_ptr<EventLoop> ev_loop = make_shared<EventLoop>();
+///     unique_ptr<Thing> thing = make_unique<Thing>();
+///	}
+/// \endcode
 namespace ks
 {
     typedef unsigned int uint;
@@ -38,12 +57,16 @@ namespace ks
     typedef int32_t s32;
     typedef int64_t s64;
 
+    /// * The standard data type for Ids in ks is a 64-bit
+    ///   unsigned integer. Ids usually aren't recycled and
+    ///   are simply incremented monotonically
     typedef u64 Id;
 
     using std::shared_ptr;
     using std::unique_ptr;
     using std::weak_ptr;
 
+    /// \cond HIDE_DOCS
     // make_unique for pre c++14 compilers
     // http://stackoverflow.com/questions/7038357/make-unique-and-perfect-forwarding
     template <typename T, typename... Args>
@@ -59,9 +82,12 @@ namespace ks
        typedef typename std::remove_extent<T>::type U;
        return std::unique_ptr<T>(new U[sizeof...(Args)]{std::forward<Args>(args)...});
     }
+    /// \endcond
 
+    /// * Equivalent to std::make_unique
+    /// * Included because make_unique isn't part of the C++11 standard
     template <typename T, typename... Args>
-    std::unique_ptr<T> make_unique(Args&&... args) {
+    unique_ptr<T> make_unique(Args&&... args) {
        return make_unique_helper<T>(std::is_array<T>(), std::forward<Args>(args)...);
     }
 
@@ -70,7 +96,26 @@ namespace ks
     // is more syntactically consistent
     using std::make_shared;
 
-    // because android doesn't support std::to_string
+    /// * This class wraps shared_ptr but requires a unique_ptr to construct
+    /// * It forces the function calling Signal.Emit(emit_ptr<...>) to give up
+    //    ownership of whatever is passed to Emit
+    template<typename T>
+    class emit_ptr
+    {
+    public:
+        emit_ptr(unique_ptr<T> ptr) :
+            m_ptr(ptr.release())
+        {
+            // empty
+        }
+
+    private:
+        shared_ptr<T> m_ptr;
+    };
+
+    /// * Converts common types to std::string
+    /// * Included instead of using std::to_string because the latter
+    ///   is missing on Android
     template<typename T>
     std::string to_string(T const &val)
     {

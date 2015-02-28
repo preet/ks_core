@@ -54,6 +54,8 @@ namespace ks
         void PostEvent(unique_ptr<Event> event);
         void PostStopEvent();
 
+        uint DebugGetEventCount() const;
+
     private:
         void waitUntilStarted();
         void waitUntilStopped();

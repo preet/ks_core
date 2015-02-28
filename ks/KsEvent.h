@@ -188,9 +188,9 @@ namespace ks
     {
     public:
         BlockingSlotEvent(std::function<void()> &&slot,
-                                bool * invoked,
-                                std::mutex * invoked_mutex,
-                                std::condition_variable * invoked_cv) :
+                          bool * invoked,
+                          std::mutex * invoked_mutex,
+                          std::condition_variable * invoked_cv) :
             Event(Event::Type::BlockingSlot),
             m_slot(std::move(slot)),
             m_invoked(invoked),

@@ -28,9 +28,6 @@
 
 namespace ks
 {
-    // NOTE:
-    // We start the id_counter at 1 because the thread
-    // id '0' is reserved for the main thread
     std::atomic<Id> EventLoop::s_id_counter(0);
 
     Id EventLoop::genId()
@@ -142,12 +139,19 @@ namespace ks
     public:
         EventHandler(unique_ptr<Event> &event,
                      asio::io_service * service,
+                     std::atomic<uint> * event_count,
                      std::map<Id,shared_ptr<TimerInfo>> * list_timers) :
             m_event(std::move(event)),
             m_service(service),
+            m_event_count(event_count),
             m_list_timers(list_timers)
         {
-            // empty
+            (*m_event_count) += 1;
+        }
+
+        ~EventHandler()
+        {
+            (*m_event_count) -= 1;
         }
 
         // NOTE: asio requires handlers to be copy constructible,
@@ -163,7 +167,9 @@ namespace ks
         {
             m_event = std::move(other.m_event);
             m_service = other.m_service;
+            m_event_count = other.m_event_count;
             m_list_timers = other.m_list_timers;
+            (*m_event_count) += 1;
         }
 
         void operator()()
@@ -239,6 +245,7 @@ namespace ks
     private:
         unique_ptr<Event> m_event;
         asio::io_service * m_service;
+        std::atomic<uint> * m_event_count;
         std::map<Id,shared_ptr<TimerInfo>> * m_list_timers;
     };
 
@@ -247,6 +254,13 @@ namespace ks
     // EventLoop implementation
     struct EventLoop::Impl
     {
+        Impl() :
+            m_event_count(0)
+        {
+            // empty
+        }
+
+        std::atomic<uint> m_event_count;
         asio::io_service m_asio_service;
         unique_ptr<asio::io_service::work> m_asio_work;
     };
@@ -343,13 +357,19 @@ namespace ks
         m_impl->m_asio_service.post(
                     EventHandler(
                         event,
-                        &m_impl->m_asio_service,
+                        &(m_impl->m_asio_service),
+                        &(m_impl->m_event_count),
                         &m_list_timers));
     }
 
     void EventLoop::PostStopEvent()
     {
         m_impl->m_asio_service.post(std::bind(&EventLoop::Stop,this));
+    }
+
+    uint EventLoop::DebugGetEventCount() const
+    {
+        return m_impl->m_event_count;
     }
 
     void EventLoop::waitUntilStarted()

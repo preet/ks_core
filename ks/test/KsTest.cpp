@@ -2,6 +2,7 @@
 #include <ks/thirdparty/catch/catch.hpp>
 
 #include <ks/KsGlobal.h>
+#include <ks/KsObject.h>
 #include <ks/KsApplication.h>
 #include <ks/KsTimer.h>
 
@@ -173,9 +174,82 @@ TEST_CASE("EventLoop","[evloop]")
 // ============================================================= //
 // ============================================================= //
 
+class Derived0 : public Object
+{
+    friend class ks::ObjectBuilder;
+    typedef ks::Object base_type;
+
+public:
+    ~Derived0()
+    {
+
+    }
+
+    std::string m_create;
+
+protected:
+    Derived0() :
+        Object(nullptr)
+    {
+        m_create += "Construct0";
+    }
+
+private:
+    void init()
+    {
+        m_create += "Init0";
+    }
+};
+
+class Derived1 : public Derived0
+{
+    friend class ks::ObjectBuilder;
+    typedef Derived0 base_type;
+
+public:
+    ~Derived1()
+    {
+
+    }
+
+protected:
+    Derived1()
+    {
+        m_create += "Construct1";
+    }
+
+private:
+    void init()
+    {
+        m_create += "Init1";
+    }
+};
+
+// ============================================================= //
+
+TEST_CASE("Objects","[objects]")
+{
+    // Check construction and init order for make_object
+    // with inheritance chains
+
+    std::string const expect_create =
+            "Construct0Construct1Init0Init1";
+
+    shared_ptr<Derived1> d1 = make_object<Derived1>();
+    bool ok = (expect_create == d1->m_create);
+
+    REQUIRE(ok);
+}
+
+// ============================================================= //
+// ============================================================= //
+
 class TrivialReceiver : public Object
 {
-public:
+    friend class ks::ObjectBuilder;
+    typedef Object base_type;
+
+protected:
     TrivialReceiver(shared_ptr<EventLoop> event_loop) :
         Object(event_loop),
         invoke_count(0)
@@ -183,6 +257,7 @@ public:
         // empty
     }
 
+public:
     void SlotCheck(bool * ok)
     {
         (*ok) = true;
@@ -199,6 +274,12 @@ public:
     }
 
     uint invoke_count;
+
+private:
+    void init()
+    {
+
+    }
 };
 
 // ============================================================= //
@@ -209,7 +290,7 @@ TEST_CASE("Signals","[signals]")
     shared_ptr<EventLoop> event_loop = make_shared<EventLoop>();
 
     shared_ptr<TrivialReceiver> receiver =
-            make_shared<TrivialReceiver>(event_loop);
+            make_object<TrivialReceiver>(event_loop);
 
     SECTION("Connect/Disconnect")
     {
@@ -272,7 +353,7 @@ TEST_CASE("Signals","[signals]")
 
         {
             shared_ptr<TrivialReceiver> temp_receiver =
-                    make_shared<TrivialReceiver>(event_loop);
+                    make_object<TrivialReceiver>(event_loop);
 
             cid0 = signal_check.Connect(
                         temp_receiver,
@@ -303,7 +384,7 @@ TEST_CASE("Signals","[signals]")
 
         // r0
         shared_ptr<TrivialReceiver> r0 =
-                make_shared<TrivialReceiver>(event_loop);
+                make_object<TrivialReceiver>(event_loop);
 
         size_t const one_one_count = 100;
 
@@ -326,9 +407,9 @@ TEST_CASE("Signals","[signals]")
         // test 1 signal -> 4 slots
 
         // add receivers
-        shared_ptr<TrivialReceiver> r1 = make_shared<TrivialReceiver>(event_loop);
-        shared_ptr<TrivialReceiver> r2 = make_shared<TrivialReceiver>(event_loop);
-        shared_ptr<TrivialReceiver> r3 = make_shared<TrivialReceiver>(event_loop);
+        shared_ptr<TrivialReceiver> r1 = make_object<TrivialReceiver>(event_loop);
+        shared_ptr<TrivialReceiver> r2 = make_object<TrivialReceiver>(event_loop);
+        shared_ptr<TrivialReceiver> r3 = make_object<TrivialReceiver>(event_loop);
 
         // zero count
         r0->invoke_count = 0;
@@ -366,16 +447,10 @@ TEST_CASE("Signals","[signals]")
 
 class WakeupReceiver : public Object
 {
-public:
-    WakeupReceiver(shared_ptr<EventLoop> event_loop) :
-        Object(event_loop),
-        m_wakeup_count(0),
-        m_wakeup_limit(0),
-        m_waiting(false)
-    {
-       // empty
-    }
+    friend class ks::ObjectBuilder;
+    typedef Object base_type;
 
+public:
     ~WakeupReceiver()
     {
 
@@ -411,7 +486,22 @@ public:
         m_cv.notify_all();
     }
 
+protected:
+    WakeupReceiver(shared_ptr<EventLoop> event_loop) :
+        Object(event_loop),
+        m_wakeup_count(0),
+        m_wakeup_limit(0),
+        m_waiting(false)
+    {
+       // empty
+    }
+
 private:
+    void init()
+    {
+
+    }
+
     uint m_wakeup_count;
     uint m_wakeup_limit;
     bool m_waiting;
@@ -432,10 +522,10 @@ TEST_CASE("ks::Timer","[timers]") {
         std::thread thread( [event_loop](){ event_loop->Run(); });
 
         shared_ptr<Timer> timer =
-                make_shared<Timer>(event_loop);
+                make_object<Timer>(event_loop);
 
         shared_ptr<WakeupReceiver> receiver =
-                make_shared<WakeupReceiver>(event_loop);
+                make_object<WakeupReceiver>(event_loop);
 
         timer->SignalTimeout.Connect(
                     receiver,
@@ -532,7 +622,10 @@ TEST_CASE("ks::Timer","[timers]") {
 
 class TrivialApplication : public Application
 {
-public:
+    friend class ks::ObjectBuilder;
+    typedef Application base_type;
+
+protected:
     TrivialApplication() :
         m_ret_val(0),
         m_keep_running(false)
@@ -540,6 +633,7 @@ public:
 
     }
 
+public:
     ~TrivialApplication()
     {
 
@@ -568,6 +662,11 @@ private:
         m_ret_val = ret_val;
     }
 
+    void init()
+    {
+
+    }
+
     sint m_ret_val;
     bool m_keep_running;
 };
@@ -576,7 +675,10 @@ private:
 
 class CleanupObject : public Object
 {
-public:
+    friend class ks::ObjectBuilder;
+    typedef Object base_type;
+
+protected:
     CleanupObject(shared_ptr<EventLoop> event_loop,
                   std::atomic<uint> * i) :
         Object(event_loop),
@@ -585,6 +687,7 @@ public:
 
     }
 
+public:
     ~CleanupObject()
     {
 
@@ -602,6 +705,11 @@ public:
     Signal<Id> SignalFinishedCleanup;
 
 private:
+    void init()
+    {
+
+    }
+
     std::atomic<uint> * m_i;
 };
 
@@ -610,7 +718,7 @@ private:
 TEST_CASE("ks::Application","[application]") {
 
     shared_ptr<Application> app =
-            make_shared<TrivialApplication>();
+            make_object<TrivialApplication>();
 
     SECTION("Test cleanup") {
 
@@ -618,10 +726,10 @@ TEST_CASE("ks::Application","[application]") {
 
         // cleanup objects in app event_loop
         shared_ptr<CleanupObject> r0 =
-                make_shared<CleanupObject>(app->GetEventLoop(),&i);
+                make_object<CleanupObject>(app->GetEventLoop(),&i);
 
         shared_ptr<CleanupObject> r1 =
-                make_shared<CleanupObject>(app->GetEventLoop(),&i);
+                make_object<CleanupObject>(app->GetEventLoop(),&i);
 
         // cleanup objects in alt event_loop
         shared_ptr<EventLoop> event_loop = make_shared<EventLoop>();
@@ -629,10 +737,10 @@ TEST_CASE("ks::Application","[application]") {
         std::thread thread( [event_loop](){ event_loop->Run(); });
 
         shared_ptr<CleanupObject> r2 =
-                make_shared<CleanupObject>(event_loop,&i);
+                make_object<CleanupObject>(event_loop,&i);
 
         shared_ptr<CleanupObject> r3 =
-                make_shared<CleanupObject>(event_loop,&i);
+                make_object<CleanupObject>(event_loop,&i);
 
         app->AddCleanupRequest(r0);
         app->AddCleanupRequest(r1);
@@ -674,4 +782,3 @@ TEST_CASE("ks::Application","[application]") {
         REQUIRE(i==0);
     }
 }
-

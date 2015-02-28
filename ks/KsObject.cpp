@@ -15,13 +15,17 @@
 */
 
 #include <ks/KsObject.h>
+#include <ks/KsLog.h>
 
 namespace ks
 {
-    std::atomic<Id> Object::s_id_counter(0);
+    std::mutex Object::s_id_mutex;
+
+    Id Object::s_id_counter(0);
 
     Id Object::genId()
     {
+        std::lock_guard<std::mutex> lock(s_id_mutex);
         Id id = s_id_counter;
         s_id_counter++;
         return id;
@@ -49,6 +53,11 @@ namespace ks
     shared_ptr<EventLoop> const & Object::GetEventLoop() const
     {
         return m_event_loop;
+    }
+
+    void Object::init()
+    {
+
     }
 
 } // ks
