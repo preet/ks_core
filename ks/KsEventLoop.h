@@ -21,6 +21,7 @@
 #include <thread>
 #include <mutex>
 #include <map>
+#include <vector>
 #include <condition_variable>
 
 #include <ks/KsGlobal.h>
@@ -28,6 +29,8 @@
 namespace ks
 {
     class Event;
+    class StartTimerEvent;
+    class StopTimerEvent;
     class TimerInfo;
 
     class EventLoop final
@@ -54,11 +57,11 @@ namespace ks
         void PostEvent(unique_ptr<Event> event);
         void PostStopEvent();
 
-        uint DebugGetEventCount() const;
-
     private:
         void waitUntilStarted();
         void waitUntilStopped();
+        void startTimer(unique_ptr<StartTimerEvent> event);
+        void stopTimer(unique_ptr<StopTimerEvent> event);
 
         Id const m_id;
 

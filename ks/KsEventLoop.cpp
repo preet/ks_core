@@ -91,7 +91,7 @@ namespace ks
 
         void operator()(asio::error_code const &ec)
         {
-            if(ec == asio::error::operation_aborted ||
+            if((ec == asio::error::operation_aborted) ||
                m_timerinfo->canceled) {
                 // The timer was canceled
                 return;
@@ -139,19 +139,17 @@ namespace ks
     public:
         EventHandler(unique_ptr<Event> &event,
                      asio::io_service * service,
-                     std::atomic<uint> * event_count,
                      std::map<Id,shared_ptr<TimerInfo>> * list_timers) :
             m_event(std::move(event)),
             m_service(service),
-            m_event_count(event_count),
             m_list_timers(list_timers)
         {
-            (*m_event_count) += 1;
+            // empty
         }
 
         ~EventHandler()
         {
-            (*m_event_count) -= 1;
+            // empty
         }
 
         // NOTE: asio requires handlers to be copy constructible,
@@ -167,9 +165,7 @@ namespace ks
         {
             m_event = std::move(other.m_event);
             m_service = other.m_service;
-            m_event_count = other.m_event_count;
             m_list_timers = other.m_list_timers;
-            (*m_event_count) += 1;
         }
 
         void operator()()
@@ -188,64 +184,11 @@ namespace ks
                             m_event.get());
                 ev->Invoke();
             }
-            else if(ev_type == Event::Type::StartTimer)
-            {
-                StartTimerEvent * ev =
-                        static_cast<StartTimerEvent*>(
-                            m_event.get());
-
-                auto timer = ev->GetTimer().lock();
-                if(!timer) {
-                    // The timer object was destroyed
-                    return;
-                }
-
-                auto timerinfo_it = m_list_timers->find(ev->GetTimerId());
-                if(timerinfo_it != m_list_timers->end()) {
-                    // If a timer for the given id already exists, erase it
-                    timerinfo_it->second->asio_timer.cancel();
-                    timerinfo_it->second->canceled = true;
-                    m_list_timers->erase(timerinfo_it);
-                }
-
-                // Insert a new timer and start it
-                timerinfo_it = m_list_timers->emplace(
-                            ev->GetTimerId(),
-                            make_shared<TimerInfo>(
-                                ev->GetTimerId(),
-                                ev->GetTimer(),
-                                *m_service,
-                                ev->GetInterval(),
-                                ev->GetRepeating())).first;
-
-                timer->m_active = true;
-                timerinfo_it->second->asio_timer.async_wait(
-                            TimeoutHandler(timerinfo_it->second,false));
-            }
-            else if(ev_type == Event::Type::StopTimer)
-            {
-                StopTimerEvent * ev =
-                        static_cast<StopTimerEvent*>(
-                            m_event.get());
-
-                // Cancel and remove the timer for the given id
-                auto timerinfo_it = m_list_timers->find(ev->GetTimerId());
-
-                auto timer = timerinfo_it->second->timer.lock();
-                if(timer) {
-                    timer->m_active = false;
-                }
-
-                timerinfo_it->second->asio_timer.cancel();
-                timerinfo_it->second->canceled = true;
-                m_list_timers->erase(timerinfo_it);
-            }
         }
 
     private:
         unique_ptr<Event> m_event;
         asio::io_service * m_service;
-        std::atomic<uint> * m_event_count;
         std::map<Id,shared_ptr<TimerInfo>> * m_list_timers;
     };
 
@@ -254,13 +197,11 @@ namespace ks
     // EventLoop implementation
     struct EventLoop::Impl
     {
-        Impl() :
-            m_event_count(0)
+        Impl()
         {
             // empty
         }
 
-        std::atomic<uint> m_event_count;
         asio::io_service m_asio_service;
         unique_ptr<asio::io_service::work> m_asio_work;
     };
@@ -354,22 +295,29 @@ namespace ks
 
     void EventLoop::PostEvent(unique_ptr<Event> event)
     {
-        m_impl->m_asio_service.post(
-                    EventHandler(
-                        event,
-                        &(m_impl->m_asio_service),
-                        &(m_impl->m_event_count),
-                        &m_list_timers));
+        if(event->GetType() == Event::Type::StartTimer) {
+            this->startTimer(
+                        std::unique_ptr<StartTimerEvent>(
+                            static_cast<StartTimerEvent*>(
+                                event.release())));
+        }
+        else if(event->GetType() == Event::Type::StopTimer) {
+            this->stopTimer(std::unique_ptr<StopTimerEvent>(
+                                static_cast<StopTimerEvent*>(
+                                    event.release())));
+        }
+        else {
+            m_impl->m_asio_service.post(
+                        EventHandler(
+                            event,
+                            &(m_impl->m_asio_service),
+                            &m_list_timers));
+        }
     }
 
     void EventLoop::PostStopEvent()
     {
         m_impl->m_asio_service.post(std::bind(&EventLoop::Stop,this));
-    }
-
-    uint EventLoop::DebugGetEventCount() const
-    {
-        return m_impl->m_event_count;
     }
 
     void EventLoop::waitUntilStarted()
@@ -390,5 +338,56 @@ namespace ks
         }
     }
 
+    void EventLoop::startTimer(unique_ptr<StartTimerEvent> ev)
+    {
+        // lock because we modify m_list_timers
+        std::unique_lock<std::mutex> lock(m_mutex);
+
+        auto timer = ev->GetTimer().lock();
+        if(!timer) {
+            // The timer object was destroyed
+            return;
+        }
+
+        auto timerinfo_it = m_list_timers.find(ev->GetTimerId());
+        if(timerinfo_it != m_list_timers.end()) {
+            // If a timer for the given id already exists, erase it
+            timerinfo_it->second->asio_timer.cancel();
+            timerinfo_it->second->canceled = true;
+            m_list_timers.erase(timerinfo_it);
+        }
+
+        // Insert a new timer and start it
+        timerinfo_it = m_list_timers.emplace(
+                    ev->GetTimerId(),
+                    make_shared<TimerInfo>(
+                        ev->GetTimerId(),
+                        ev->GetTimer(),
+                        m_impl->m_asio_service,
+                        ev->GetInterval(),
+                        ev->GetRepeating())).first;
+
+        timer->m_active = true;
+        timerinfo_it->second->asio_timer.async_wait(
+                    TimeoutHandler(timerinfo_it->second,false));
+    }
+
+    void EventLoop::stopTimer(unique_ptr<StopTimerEvent> ev)
+    {
+        // lock because we modify m_list_timers
+        std::unique_lock<std::mutex> lock(m_mutex);
+
+        // Cancel and remove the timer for the given id
+        auto timerinfo_it = m_list_timers.find(ev->GetTimerId());
+
+        auto timer = timerinfo_it->second->timer.lock();
+        if(timer) {
+            timer->m_active = false;
+        }
+
+        timerinfo_it->second->asio_timer.cancel();
+        timerinfo_it->second->canceled = true;
+        m_list_timers.erase(timerinfo_it);
+    }
 
 } // ks

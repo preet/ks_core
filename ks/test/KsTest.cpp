@@ -473,6 +473,11 @@ public:
         }
     }
 
+    void OnSleepFor(std::chrono::milliseconds sleep_ms)
+    {
+        std::this_thread::sleep_for(sleep_ms);
+    }
+
     void OnWakeup()
     {
         m_wakeup_count++;
@@ -613,6 +618,54 @@ TEST_CASE("ks::Timer","[timers]") {
             event_loop->Stop();
             event_loop->Wait();
             thread.join();
+        }
+
+        SECTION("delayed start: ") {
+            // We want to ensure that timers are started
+            // immediately by the calling thread and not
+            // delayed by posting their start as an event
+            // in the actual event loop.
+
+            // For example if there are two events:
+            // [busy event 25ms] [timer start]
+
+            // The 'busy event' that takes 25ms to complete
+            // should not delay the start of the timer
+
+            // emit a signal to put the receiver's event loop's
+            // thread to sleep
+            Signal<std::chrono::milliseconds> SignalSleepFor;
+            SignalSleepFor.Connect(
+                        receiver,
+                        &WakeupReceiver::OnSleepFor);
+
+            std::chrono::time_point<std::chrono::steady_clock> start,end;
+            start = std::chrono::steady_clock::now();
+
+            SignalSleepFor.Emit(std::chrono::milliseconds(25));
+            timer->Start(std::chrono::milliseconds(25),false);
+            receiver->Prepare(1);
+            receiver->Block();
+
+            end = std::chrono::steady_clock::now();
+            std::chrono::milliseconds interval_ms =
+                    std::chrono::duration_cast<
+                        std::chrono::milliseconds
+                    >(end-start);
+
+            // Cleanup
+            event_loop->Stop();
+            event_loop->Wait();
+            thread.join();
+
+            // The single shot timer should have marked the
+            // timer inactive after timing out
+            REQUIRE_FALSE(timer->GetActive());
+
+            // The interval shouldn't have been affected
+            // by the delay so it should be about 25ms
+            bool ok = (interval_ms.count() >= 25) && (interval_ms.count() <= 30);
+            REQUIRE(ok);
         }
     }
 }

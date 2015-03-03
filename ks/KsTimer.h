@@ -28,7 +28,7 @@ namespace ks
         typedef Object base_type;
 
         friend class TimeoutHandler;
-        friend class EventHandler;
+        friend class EventLoop;
 
     public:
         ~Timer()
