@@ -518,8 +518,36 @@ private:
 
 TEST_CASE("ks::Timer","[timers]") {
 
-    SECTION("single timer: ") {
+    SECTION("inactive tests: ") {
+        shared_ptr<EventLoop> event_loop =
+                make_shared<EventLoop>();
 
+        shared_ptr<Timer> timer =
+                make_object<Timer>(event_loop);
+
+        SECTION("destroy inactive") {
+            shared_ptr<Timer> timer = nullptr;
+        }
+
+        SECTION("stop inactive") {
+            timer->Stop();
+            shared_ptr<Timer> timer = nullptr;
+        }
+
+        SECTION("start/stop fuzz inactive") {
+            timer->Start(std::chrono::milliseconds(10),false);
+            timer->Start(std::chrono::milliseconds(10),false);
+            timer->Stop();
+            timer->Stop();
+            timer->Start(std::chrono::milliseconds(10),false);
+            timer->Stop();
+            timer->Start(std::chrono::milliseconds(10),false);
+            timer->Stop();
+            shared_ptr<Timer> timer = nullptr;
+        }
+    }
+
+    SECTION("single timer: ") {
         shared_ptr<EventLoop> event_loop =
                 make_shared<EventLoop>();
 

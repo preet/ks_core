@@ -138,11 +138,9 @@ namespace ks
     {
     public:
         EventHandler(unique_ptr<Event> &event,
-                     asio::io_service * service,
-                     std::map<Id,shared_ptr<TimerInfo>> * list_timers) :
+                     asio::io_service * service) :
             m_event(std::move(event)),
-            m_service(service),
-            m_list_timers(list_timers)
+            m_service(service)
         {
             // empty
         }
@@ -165,7 +163,6 @@ namespace ks
         {
             m_event = std::move(other.m_event);
             m_service = other.m_service;
-            m_list_timers = other.m_list_timers;
         }
 
         void operator()()
@@ -189,7 +186,6 @@ namespace ks
     private:
         unique_ptr<Event> m_event;
         asio::io_service * m_service;
-        std::map<Id,shared_ptr<TimerInfo>> * m_list_timers;
     };
 
     // ============================================================= //
@@ -295,6 +291,9 @@ namespace ks
 
     void EventLoop::PostEvent(unique_ptr<Event> event)
     {
+        // Timer events are handled immediately instead of
+        // posting them to the event queue to avoid delaying
+        // their start and end times
         if(event->GetType() == Event::Type::StartTimer) {
             this->startTimer(
                         std::unique_ptr<StartTimerEvent>(
@@ -310,8 +309,7 @@ namespace ks
             m_impl->m_asio_service.post(
                         EventHandler(
                             event,
-                            &(m_impl->m_asio_service),
-                            &m_list_timers));
+                            &(m_impl->m_asio_service)));
         }
     }
 
@@ -379,6 +377,9 @@ namespace ks
 
         // Cancel and remove the timer for the given id
         auto timerinfo_it = m_list_timers.find(ev->GetTimerId());
+        if(timerinfo_it == m_list_timers.end()) {
+            return;
+        }
 
         auto timer = timerinfo_it->second->timer.lock();
         if(timer) {
