@@ -25,7 +25,7 @@ SOURCES += \
 
 # thirdparty
 include($${PATH_KS_CORE}/thirdparty/asio/asio.pri)
-include($${PATH_KS_CORE}/thirdparty/lodepng/lodepng.pri)
+#include($${PATH_KS_CORE}/thirdparty/lodepng/lodepng.pri)
 
 # need these flags for gcc 4.8.x bug for threads
 QMAKE_LFLAGS += -Wl,--no-as-needed

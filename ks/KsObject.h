@@ -150,11 +150,10 @@ namespace ks
     ///    // the object.
     ///    typedef Object base_type;
     ///
-    ///    // Due to an implementation detail, constructors
-    ///    // must be protected and may not be private. You
-    ///    // shouldn't mark them as public to ensure only
-    ///    // ks::make_object can be used for creation
-    ///    protected:
+    ///    // Constructors should be marked private or protected
+    ///    // and not public to ensure only ks::make_object can
+    ///    // be used for creation.
+    ///    private:
     ///       Derived(shared_ptr<ks::EventLoop> const &evloop, /* other args */) :
     ///          ks::Object(evloop) {}
     ///
@@ -172,11 +171,10 @@ namespace ks
     ///    friend class ks::ObjectBuilder;
     ///    typedef Derived base_type; // note this isn't ks::Object, but Derived
     ///
-    ///    protected:
+    ///    private:
     ///       DerivedAgain(shared_ptr<ks::EventLoop> const &evloop, /* other args */) :
     ///          Derived(evloop) {}
     ///
-    ///    private:
     ///       void init() {}
     /// };
     /// \endcode

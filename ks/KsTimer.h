@@ -84,7 +84,7 @@ namespace ks
 
         Signal<> SignalTimeout;
 
-    protected:
+    private:
         Timer(shared_ptr<EventLoop> event_loop) :
             Object(event_loop),
             m_interval_ms(0),
@@ -94,7 +94,6 @@ namespace ks
 
         }
 
-    private:
         void init()
         {
 
