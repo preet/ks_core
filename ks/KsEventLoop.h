@@ -47,27 +47,44 @@ namespace ks
         EventLoop & operator = (EventLoop &&) = delete;
 
         Id GetId() const;
+        std::thread::id GetThreadId();
         bool GetStarted();
+        bool GetRunning();
 
         void Start();
-        void Run();
+        void Run(bool *ok=nullptr);
         void Stop();
         void Wait();
-        void ProcessEvents();
+        bool ProcessEvents();
         void PostEvent(unique_ptr<Event> event);
         void PostStopEvent();
 
-    private:
+        static std::thread LaunchInThread(shared_ptr<EventLoop> event_loop,
+                                          bool * ok = nullptr);
+
+        static void RemoveFromThread(shared_ptr<EventLoop> event_loop,
+                                     std::thread & thread,
+                                     bool post_stop=false);
+
         void waitUntilStarted();
+        void waitUntilRunning();
         void waitUntilStopped();
+    private:
         void startTimer(unique_ptr<StartTimerEvent> event);
         void stopTimer(unique_ptr<StopTimerEvent> event);
+        void setActiveThread();
+        void unsetActiveThread();
+        bool checkActiveThread();
 
         Id const m_id;
+        std::thread::id const m_thread_id_null; // default id for 'no thread'
+        std::thread::id m_thread_id;
 
         bool m_started;
+        bool m_running;
         std::mutex m_mutex;
         std::condition_variable m_cv_started;
+        std::condition_variable m_cv_running;
         std::condition_variable m_cv_stopped;
         std::map<Id,shared_ptr<TimerInfo>> m_list_timers;
 

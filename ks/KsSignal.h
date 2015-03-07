@@ -78,14 +78,6 @@ namespace ks
 
         // Connect to a an event receiver's member function
         // TODO: Connect for free functions
-        // TODO: should we be passing a weak_ptr instead
-        //       of a shared_ptr? it should be clear that
-        //       shared_ptr isn't saved; doing so would
-        //       probably cause a bunch of circular dependency
-        //       chains which would be very very bad. At the
-        //       same time there's no point in passing a receiver
-        //       thats already null to Connect which would be
-        //       possible with a weak_ptr
         template<typename T, typename... SlotArgs>
         Id Connect(shared_ptr<T> const &receiver,
                    void (T::*slot)(SlotArgs...),
@@ -130,62 +122,8 @@ namespace ks
             return false;
         }
 
-        void BlockingEmit(Args const &... args)
-        {
-            std::lock_guard<std::mutex> lock(m_connection_mutex);
-
-            uint expired_count=0;
-
-            for(auto &connection : m_list_connections) {
-                auto receiver = connection.receiver.lock();
-                if(receiver) {
-                    // post the slot to the receivers thread
-                    // and block until its invoked
-                    bool invoked = false;
-                    std::mutex invoked_mutex;
-                    std::condition_variable invoked_cv;
-
-                    unique_ptr<Event> event(new BlockingSlotEvent(
-                        std::bind(connection.slot,args...),
-                        &invoked,
-                        &invoked_mutex,
-                        &invoked_cv));
-
-                    std::unique_lock<std::mutex> invoked_lock(invoked_mutex);
-                    receiver->GetEventLoop()->PostEvent(std::move(event));
-
-                    while(!invoked) {
-                        invoked_cv.wait(invoked_lock);
-                    }
-                }
-                else {
-                    // If the receiver for this connection has been
-                    // destroyed, mark the connection as expired
-                    expired_count++;
-                }
-            }
-
-            // Remove any expired connections
-            if(expired_count > 0) {
-                auto remove_begin = std::remove_if(
-                            m_list_connections.begin(),
-                            m_list_connections.end(),
-                            [](Connection const &connection) {
-                                return (connection.receiver.expired());
-                            });
-
-                m_list_connections.erase(
-                            remove_begin,
-                            m_list_connections.end());
-            }
-        }
-
         void Emit(Args const &... args)
         {
-            // TODO: Maybe provide a Non-threadsafe signal class
-            // (maybe use a dummy mutex) so we can avoid mutex
-            // overhead on direct connections
-
             // Go through each connection and post an event
             // to invoke the slot with @args
 
@@ -211,23 +149,34 @@ namespace ks
                         receiver->GetEventLoop()->PostEvent(std::move(event));
                     }
                     else {
-                        // post the slot to the receivers thread
-                        // and block until its invoked
-                        bool invoked = false;
-                        std::mutex invoked_mutex;
-                        std::condition_variable invoked_cv;
+                        // TODO desc
+                        if(receiver->GetEventLoop()->GetThreadId() ==
+                                std::this_thread::get_id()) {
+                            // Process any queued events
+                            receiver->GetEventLoop()->ProcessEvents();
 
-                        unique_ptr<Event> event(new BlockingSlotEvent(
-                            std::bind(connection.slot,args...),
-                            &invoked,
-                            &invoked_mutex,
-                            &invoked_cv));
+                            // invoke this slot directly
+                            directInvoke(args...,connection);
+                        }
+                        else {
+                            // post the slot to the receivers thread
+                            // and block until its invoked
+                            bool invoked = false;
+                            std::mutex invoked_mutex;
+                            std::condition_variable invoked_cv;
 
-                        std::unique_lock<std::mutex> invoked_lock(invoked_mutex);
-                        receiver->GetEventLoop()->PostEvent(std::move(event));
+                            unique_ptr<Event> event(new BlockingSlotEvent(
+                                std::bind(connection.slot,args...),
+                                &invoked,
+                                &invoked_mutex,
+                                &invoked_cv));
 
-                        while(!invoked) {
-                            invoked_cv.wait(invoked_lock);
+                            std::unique_lock<std::mutex> invoked_lock(invoked_mutex);
+                            receiver->GetEventLoop()->PostEvent(std::move(event));
+
+                            while(!invoked) {
+                                invoked_cv.wait(invoked_lock);
+                            }
                         }
                     }
                 }

@@ -208,6 +208,7 @@ namespace ks
     EventLoop::EventLoop() :
         m_id(genId()),
         m_started(false),
+        m_running(false),
         m_impl(new Impl())
     {
         // empty
@@ -223,10 +224,22 @@ namespace ks
         return m_id;
     }
 
+    std::thread::id EventLoop::GetThreadId()
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_thread_id;
+    }
+
     bool EventLoop::GetStarted()
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         return m_started;
+    }
+
+    bool EventLoop::GetRunning()
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_running;
     }
 
     void EventLoop::Start()
@@ -243,20 +256,33 @@ namespace ks
                     new asio::io_service::work(
                         m_impl->m_asio_service));
 
+        this->setActiveThread();
         m_started = true;
 
         m_cv_started.notify_all();
     }
 
-    void EventLoop::Run()
+    void EventLoop::Run(bool* ok)
     {
         {
             std::lock_guard<std::mutex> lock(m_mutex);
             if(!(m_started && m_impl->m_asio_work)) {
+                if(ok) { *ok = false; }
                 return;
             }
+
+            if(!checkActiveThread()) {
+                if(ok) { *ok = false; }
+                return;
+            }
+
+            if(ok) { *ok = true; }
+            m_running = true;
+            m_cv_running.notify_all();
         }
-        m_impl->m_asio_service.run();
+
+        m_impl->m_asio_service.run(); // blocks!
+        m_running = false;
     }
 
     void EventLoop::Stop()
@@ -265,8 +291,8 @@ namespace ks
 
         m_impl->m_asio_work.reset(nullptr);
         m_impl->m_asio_service.stop();
+        unsetActiveThread();
         m_started = false;
-
         m_cv_stopped.notify_all();
     }
 
@@ -275,7 +301,8 @@ namespace ks
         this->waitUntilStopped();
     }
 
-    void EventLoop::ProcessEvents()
+
+    bool EventLoop::ProcessEvents()
     {
         {
             std::lock_guard<std::mutex> lock(m_mutex);
@@ -283,10 +310,15 @@ namespace ks
             if(!(m_started && m_impl->m_asio_work)) {
                 LOG.Warn() << "EventLoop: ProcessEvents called but "
                               "event loop has not been started";
-                return;
+                return false;
+            }
+
+            if(!checkActiveThread()) {
+                return false;
             }
         }
         m_impl->m_asio_service.poll();
+        return true;
     }
 
     void EventLoop::PostEvent(unique_ptr<Event> event)
@@ -318,12 +350,48 @@ namespace ks
         m_impl->m_asio_service.post(std::bind(&EventLoop::Stop,this));
     }
 
+    std::thread EventLoop::LaunchInThread(shared_ptr<EventLoop> event_loop, bool *ok)
+    {
+        std::thread thread(
+                    [event_loop,ok]
+                    () {
+                        event_loop->Start();
+                        event_loop->Run(ok);
+                    });
+
+        event_loop->waitUntilRunning();
+        return thread;
+    }
+
+    void EventLoop::RemoveFromThread(shared_ptr<EventLoop> event_loop,
+                                     std::thread &thread,
+                                     bool post_stop)
+    {
+        if(post_stop) {
+            event_loop->PostStopEvent();
+        }
+        else {
+            event_loop->Stop();
+        }
+
+        thread.join();
+    }
+
     void EventLoop::waitUntilStarted()
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
         while(!m_started) {
             m_cv_started.wait(lock);
+        }
+    }
+
+    void EventLoop::waitUntilRunning()
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+
+        while(!m_running) {
+            m_cv_running.wait(lock);
         }
     }
 
@@ -334,6 +402,31 @@ namespace ks
         while(m_started) {
             m_cv_stopped.wait(lock);
         }
+    }
+
+    void EventLoop::setActiveThread()
+    {
+        auto const calling_thread_id = std::this_thread::get_id();
+        m_thread_id = calling_thread_id;
+    }
+
+    bool EventLoop::checkActiveThread()
+    {
+        auto const calling_thread_id = std::this_thread::get_id();
+
+        // Ensure that the thread is this event loop's
+        // active thread
+        if(m_thread_id != calling_thread_id) {
+            LOG.Error() << "EventLoop: ProcessEvents/Run should only "
+                           "be called from the thread that called Start";
+            return false;
+        }
+        return true;
+    }
+
+    void EventLoop::unsetActiveThread()
+    {
+        m_thread_id = m_thread_id_null;
     }
 
     void EventLoop::startTimer(unique_ptr<StartTimerEvent> ev)

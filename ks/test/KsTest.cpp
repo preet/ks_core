@@ -102,32 +102,49 @@ TEST_CASE("EventLoop","[evloop]")
             }
         }
 
+        SECTION("Start, ProcessEvents (thread)")
+        {
+            event_loop->Start();
+            event_loop->ProcessEvents();
+
+            // Ensure that calling ProcessEvents from a second
+            // thread without stopping the event loop is an error
+            bool ok = false;
+            std::thread thread(
+                        [&ok,event_loop]
+                        () {
+                            ok = event_loop->ProcessEvents();
+                        });
+
+            REQUIRE_FALSE(ok);
+            thread.join();
+        }
+
         SECTION("Run")
         {
             event_loop->Run();
             REQUIRE(count==0); // didn't call Start yet
         }
 
-        SECTION("Start, Run (thread)")
+        SECTION("Start (thread), Run (thread)")
         {
-            event_loop->Start();
-
-            std::thread thread(
-                        [event_loop]
-                        () {
-                            event_loop->Run();
-                        });
+            bool ok = false;
+            std::thread thread = EventLoop::LaunchInThread(event_loop,&ok);
 
             SECTION("Stop")
             {
                 event_loop->Stop();
+                event_loop->Wait();
                 thread.join();
-                // count could be anything as any
-                // number of events may have been
-                // processed before we call Stop
+
+                // count could be anything as any number of events
+                // may have been processed before we call Stop
+
+                // 'ok' could be anything as Stop in this thread might have
+                // been called before Run is called in the spawned thread
             }
 
-            SECTION("PostStopEvent")
+            SECTION("PostStopEvent,PostEvents")
             {
                 event_loop->PostEvent(make_unique<SlotEvent>(count_then_ret));
                 event_loop->PostEvent(make_unique<SlotEvent>(count_then_ret));
@@ -268,12 +285,75 @@ public:
         invoke_count++;
     }
 
+    void SlotSignalSelf(uint x, EventLoop * event_loop)
+    {
+        shared_ptr<TrivialReceiver> this_receiver =
+                std::static_pointer_cast<TrivialReceiver>(
+                    shared_from_this());
+
+        if(x > 4) {
+            event_loop->Stop();
+            return;
+        }
+
+        Signal<uint,EventLoop*> signal_self;
+        signal_self.Connect(
+                    this_receiver,
+                    &TrivialReceiver::SlotSignalSelf);
+
+        // If the slot associated with signal_self is invoked
+        // after the string append (ie. its queued), the string
+        // would be 01234
+        signal_self.Emit(x+1,event_loop);
+        misc_string.append(ks::to_string(x));
+    }
+
+    void SlotSignalSelfBlocking(uint x, EventLoop * event_loop)
+    {
+        shared_ptr<TrivialReceiver> this_receiver =
+                std::static_pointer_cast<TrivialReceiver>(
+                    shared_from_this());
+
+        if(x > 4) {
+            event_loop->Stop();
+            return;
+        }
+
+        Signal<uint,EventLoop*> signal_self;
+        signal_self.Connect(
+                    this_receiver,
+                    &TrivialReceiver::SlotSignalSelfBlocking,
+                    ConnectionType::BlockingQueued);
+
+        // If the slot associated with signal_self is invoked
+        // after the string append (ie. its queued), the string
+        // would be 01234
+        signal_self.Emit(x+1,event_loop);
+        misc_string.append(ks::to_string(x));
+    }
+
+    void SlotPrintAndCheckThreadId(std::string str,
+                                   std::thread::id thread_id)
+    {
+        if(thread_id == std::this_thread::get_id()) {
+            misc_string.append(str);
+        }
+    }
+
+    void SlotThreadId()
+    {
+        thread_id = std::this_thread::get_id();
+    }
+
     void SlotStopEventLoop(EventLoop * event_loop)
     {
         event_loop->Stop();
     }
 
     uint invoke_count;
+    std::thread::id thread_id;
+
+    std::string misc_string;
 
 private:
     void init()
@@ -286,16 +366,14 @@ private:
 
 TEST_CASE("Signals","[signals]")
 {
-    // Create and start event loop
     shared_ptr<EventLoop> event_loop = make_shared<EventLoop>();
-
-    shared_ptr<TrivialReceiver> receiver =
-            make_object<TrivialReceiver>(event_loop);
 
     SECTION("Connect/Disconnect")
     {
-        event_loop->Start();
-        std::thread thread0( [event_loop](){ event_loop->Run(); });
+        std::thread thread0 = EventLoop::LaunchInThread(event_loop);
+
+        shared_ptr<TrivialReceiver> receiver =
+                make_object<TrivialReceiver>(event_loop);
 
         Signal<bool*> signal_check;
         Signal<EventLoop*> signal_stop;
@@ -325,12 +403,12 @@ TEST_CASE("Signals","[signals]")
         // verify disconnection by testing the slots
 
         // restart event loop
-        event_loop->Start();
-        std::thread thread1( [event_loop](){ event_loop->Run(); });
+        std::thread thread1 = EventLoop::LaunchInThread(event_loop);
 
         ok = false;
         signal_check.Emit(&ok);
         signal_stop.Emit(event_loop.get());
+        event_loop->Wait();
         REQUIRE_FALSE(ok);
 
         // require repeat disconnects to fail
@@ -345,8 +423,7 @@ TEST_CASE("Signals","[signals]")
 
     SECTION("Expired Connections")
     {
-        event_loop->Start();
-        std::thread thread( [event_loop](){ event_loop->Run(); });
+        std::thread thread = EventLoop::LaunchInThread(event_loop);
 
         Signal<bool*> signal_check;
         Id cid0;
@@ -375,8 +452,7 @@ TEST_CASE("Signals","[signals]")
 
     SECTION("One-to-one and one-to-many connections")
     {
-        event_loop->Start();
-        std::thread thread0( [event_loop](){ event_loop->Run(); });
+        std::thread thread0 = EventLoop::LaunchInThread(event_loop);
 
         // signals
         Signal<> signal_count;
@@ -420,8 +496,7 @@ TEST_CASE("Signals","[signals]")
         size_t const one_many_count=100;
 
         // restart event loop
-        event_loop->Start();
-        std::thread thread1( [event_loop](){ event_loop->Run(); });
+        std::thread thread1 = EventLoop::LaunchInThread(event_loop);
 
         signal_count.Connect(r1,&TrivialReceiver::SlotCount);
         signal_count.Connect(r2,&TrivialReceiver::SlotCount);
@@ -440,7 +515,120 @@ TEST_CASE("Signals","[signals]")
 
         thread1.join();
     }
+
+    SECTION("Connection types")
+    {
+        std::thread thread = EventLoop::LaunchInThread(event_loop);
+
+        shared_ptr<TrivialReceiver> receiver =
+                make_object<TrivialReceiver>(event_loop);
+
+        SECTION("Direct connection")
+        {
+            // Ensure that the slot is invoked directly
+            // by this thread by comparing thread ids
+            Signal<> signal_set_thread_id;
+            signal_set_thread_id.Connect(
+                        receiver,
+                        &TrivialReceiver::SlotThreadId,
+                        ConnectionType::Direct);
+
+            signal_set_thread_id.Emit();
+            EventLoop::RemoveFromThread(event_loop,thread,true);
+
+            bool const check_ok =
+                    (std::this_thread::get_id() == receiver->thread_id);
+
+            REQUIRE(check_ok);
+        }
+
+        SECTION("Queued connection / Same thread")
+        {
+            // Same thread
+            Signal<uint,EventLoop*> signal_self;
+            signal_self.Connect(
+                        receiver,
+                        &TrivialReceiver::SlotSignalSelf);
+
+            signal_self.Emit(0,event_loop.get());
+            thread.join();
+
+            bool const check_ok =
+                    (receiver->misc_string == "01234");
+            REQUIRE(check_ok);
+        }
+
+        SECTION("Queued connection / Different thread")
+        {
+            // Different thread
+
+            // Test to see that
+            // 1. The slots are invoked in the right order
+            //    relative to how the signals were sent
+            // 2. The slots were invoked by the thread that
+            //    is running event_loop
+
+            Signal<std::string,std::thread::id> signal_str_threadid;
+            signal_str_threadid.Connect(
+                        receiver,
+                        &TrivialReceiver::SlotPrintAndCheckThreadId);
+
+            std::thread::id const check_id = thread.get_id();
+            signal_str_threadid.Emit("h",check_id);
+            signal_str_threadid.Emit("e",check_id);
+            signal_str_threadid.Emit("l",check_id);
+            signal_str_threadid.Emit("l",check_id);
+            signal_str_threadid.Emit("o",check_id);
+
+            EventLoop::RemoveFromThread(event_loop,thread,true);
+
+            bool const check_ok =
+                    (receiver->misc_string == "hello");
+
+            REQUIRE(check_ok);
+        }
+
+        SECTION("Blocking connection / Same thread")
+        {
+            // Same thread
+            Signal<uint,EventLoop*> signal_self;
+            signal_self.Connect(
+                        receiver,
+                        &TrivialReceiver::SlotSignalSelfBlocking,
+                        ConnectionType::BlockingQueued);
+
+            signal_self.Emit(0,event_loop.get());
+            thread.join();
+
+            bool const check_ok =
+                    (receiver->misc_string == "43210");
+            REQUIRE(check_ok);
+        }
+
+        SECTION("Blocking connection / Different thread")
+        {
+            Signal<> signal_count;
+            signal_count.Connect(
+                        receiver,
+                        &TrivialReceiver::SlotCount,
+                        ConnectionType::BlockingQueued);
+
+            // Calling Emit() should block this thread until
+            // receivers corresponding slot is invoked. To test
+            // this, we manually increment count in lockstep
+            signal_count.Emit();        // count = 1
+            receiver->invoke_count++;   // count = 2
+            signal_count.Emit();        // count = 3
+            receiver->invoke_count++;   // count = 4
+            signal_count.Emit();        // count = 5
+            receiver->invoke_count++;   // count = 6
+
+            REQUIRE(receiver->invoke_count == 6);
+            EventLoop::RemoveFromThread(event_loop,thread,true);
+        }
+    }
 }
+
 
 // ============================================================= //
 // ============================================================= //
@@ -551,8 +739,7 @@ TEST_CASE("ks::Timer","[timers]") {
         shared_ptr<EventLoop> event_loop =
                 make_shared<EventLoop>();
 
-        event_loop->Start();
-        std::thread thread( [event_loop](){ event_loop->Run(); });
+        std::thread thread = EventLoop::LaunchInThread(event_loop);
 
         shared_ptr<Timer> timer =
                 make_object<Timer>(event_loop);
@@ -814,8 +1001,7 @@ TEST_CASE("ks::Application","[application]") {
 
         // cleanup objects in alt event_loop
         shared_ptr<EventLoop> event_loop = make_shared<EventLoop>();
-        event_loop->Start();
-        std::thread thread( [event_loop](){ event_loop->Run(); });
+        std::thread thread = EventLoop::LaunchInThread(event_loop);
 
         shared_ptr<CleanupObject> r2 =
                 make_object<CleanupObject>(event_loop,&i);
@@ -857,8 +1043,7 @@ TEST_CASE("ks::Application","[application]") {
         app->SignalStartCleanup.Emit();
         app->Run();
 
-        event_loop->Stop();
-        thread.join();
+        EventLoop::RemoveFromThread(event_loop,thread);
 
         REQUIRE(i==0);
     }
