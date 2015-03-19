@@ -22,15 +22,34 @@
 
 namespace ks
 {
+    static_assert(std::chrono::high_resolution_clock::duration::period::den >= 1000,
+                  "ERROR: std::chrono::high_resolution_clock's duration period "
+                  "resolution must match or be better than a millisecond");
+
     class Timer : public Object
     {
-        friend class ObjectBuilder;
-        typedef Object base_type;
-
         friend class TimeoutHandler;
         friend class EventLoop;
 
     public:
+        using base_type = Object;
+
+        Timer(Object::Key const &key,
+              shared_ptr<EventLoop> event_loop) :
+            Object(key,event_loop),
+            m_interval_ms(0),
+            m_repeating(false),
+            m_active(false)
+        {
+
+        }
+
+        static void Init(Object::Key const &,
+                         shared_ptr<Timer>)
+        {
+
+        }
+
         ~Timer()
         {
             Stop();
@@ -85,20 +104,6 @@ namespace ks
         Signal<> SignalTimeout;
 
     private:
-        Timer(shared_ptr<EventLoop> event_loop) :
-            Object(event_loop),
-            m_interval_ms(0),
-            m_repeating(false),
-            m_active(false)
-        {
-
-        }
-
-        void init()
-        {
-
-        }
-
         std::chrono::milliseconds m_interval_ms;
         bool m_repeating;
         std::atomic<bool> m_active;

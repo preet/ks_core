@@ -29,95 +29,6 @@ namespace ks
     class Event;
     class Object;
 
-    // ============================================================= //
-
-    /// * ObjectBuilder is an implementation detail class that helps
-    ///   to construct and initialize Objects
-    /// * Any classes that are derived from Object must friend this
-    ///   class in order to be properly constructed (ie. friend class
-    ///   ObjectBuilder)
-    /// * Methods in ObjectBuilder should never be called directly
-    ///   from user code (use ks::make_object instead)
-    class ObjectBuilder
-    {
-    public:
-        /// * Underlying implementation of ks::make_object
-        /// * Constructs the Object-derived class and calls init()
-        ///   on all parent classes in the inheritance chain
-        template<typename T, typename... Args>
-        static std::shared_ptr<T> make_object(Args&&... args)
-        {
-            static_assert(std::is_base_of<Object,T>::value,
-                          "ks::make_object: Type must be a "
-                          "descendant ks::Object");
-
-            // This Access class grants std::make_shared access to call
-            // T's constructor which should be private or protected.
-
-            // A struct or class declared within a function definition
-            // has the same access as the enclosing function. So if we
-            // grant this function friendship from another class, then
-            // Access will have the same access level
-
-            // ref: http://stackoverflow.com/questions/28733451/...
-            // how-is-friendship-conferred-for-a-class-defined-within-a-friend-function
-
-            struct Access : public T {
-                Access(Args&&... args) :
-                    T(std::forward<Args>(args)...) {
-                    // empty
-                }
-            };
-
-            // call T's constructor
-            std::shared_ptr<T> ob =
-                    std::make_shared<Access>(
-                        std::forward<Args>(args)...);
-
-            // call T::init
-            init_object(ob.get());
-
-            return ob;
-        }
-
-    private:
-        /// * Recursively calls init() on the inheritance hierarchy
-        ///   of an Object-derived class. For example, a chain like
-        ///   Object <- Animal <- Leopard would call init() in the
-        ///   following order:
-        ///    -# Object::init()
-        ///    -# Animal::init()
-        ///    -# Leopard::init()
-        /// * init_object relies on the Object-derived class correctly
-        ///   specifying its immediate parent in the typedef base_type.
-        ///   See the Object class for more information.
-        template<typename T>
-        static void init_object(T * thing)
-        {
-            if(typeid(typename T::base_type) != typeid(T)) {
-                init_object<typename T::base_type>(thing);
-            }
-            thing->T::init();
-        }
-    };
-
-    // ============================================================= //
-
-    /// * make_object **must** be called to create any
-    ///   ks::Object-derived object
-    /// * Details: make_object is required because:
-    ///   - Object-derived classes must be wrapped in a shared_ptr to
-    ///     connect to any Signals
-    ///   - shared_ptrs to an object cannot be used within its own
-    ///     constructor
-    /// * As a result, make_object does two phase construction where
-    ///   normal construction can occur in the constructor, and Signal
-    ///   related setup can occur in Object::init()
-    template<typename T, typename... Args>
-    static std::shared_ptr<T> make_object(Args&&...args)
-    {
-        return ObjectBuilder::make_object<T>(std::forward<Args>(args)...);
-    }
 
     // ============================================================= //
 
@@ -139,43 +50,40 @@ namespace ks
     ///
     /// class Derived : public ks::Object
     /// {
-    ///    // All classes that inherit ks::Object must declare
-    ///    // themselves as a friend of ObjectBuilder. This is
-    ///    // required by ks::make_object to construct this object.
-    ///    friend class ks::ObjectBuilder;
-    ///
+    /// public:
     ///    // All classes that inherit ks::Object must define
     ///    // base_type to be the immediate base class of the
     ///    // class. This is required by ks::make_object to init
     ///    // the object.
-    ///    typedef Object base_type;
+    ///    using base_type = Object; // or the immediate Base class
     ///
-    ///    // Constructors should be marked private or protected
-    ///    // and not public to ensure only ks::make_object can
-    ///    // be used for creation.
-    ///    private:
-    ///       Derived(shared_ptr<ks::EventLoop> const &evloop, /* other args */) :
-    ///          ks::Object(evloop) {}
+    ///    // Constructors must have *Object::Key const &* as their
+    ///    // first parameter. This enforces creation of all Objects
+    ///    // and any derivatives through ks::make_object
+    ///       Derived(Key const &key,
+    ///               shared_ptr<ks::EventLoop> const &evloop,
+    ///               /* other args */) :
+    ///          ks::Object(key,evloop) {}
     ///
-    ///    // Each Object-derived class should declare a private
-    ///    // init() method where any initialization that requires
-    ///    // access to 'shared_from_this' (ie for connecting to
-    ///    // signals) can occur
-    ///    private:
-    ///       void init() {}
+    ///    // Each Object-derived class should declare a static Init()
+    ///    // member method with the exact signature shown
+    ///    // where any initialization that requires access to
+    ///    // 'shared_from_this' (ie for connecting to signals) can occur
+    ///       static void Init(Object::Key const &,shared_ptr<Derived>) {}
     /// };
     ///
     /// // A more succint example
     /// class DerivedAgain : public Derived
     /// {
-    ///    friend class ks::ObjectBuilder;
-    ///    typedef Derived base_type; // note this isn't ks::Object, but Derived
+    /// public:
     ///
-    ///    private:
-    ///       DerivedAgain(shared_ptr<ks::EventLoop> const &evloop, /* other args */) :
-    ///          Derived(evloop) {}
+    ///    using base_type = Derived; // note this isn't ks::Object, but Derived
     ///
-    ///       void init() {}
+    ///    DerivedAgain(Key const & key,
+    ///                 shared_ptr<ks::EventLoop> const &evloop, /* other args */) :
+    ///         Derived(key,evloop) {}
+    ///
+    ///    static void Init(Key const &,shared_ptr<DerivedAgain>) {}
     /// };
     /// \endcode
     /// * Using make_object:
@@ -185,15 +93,38 @@ namespace ks
     ///    ks::make_shared<ks::EventLoop>();
     ///
     /// // Create the object
+    /// // Note that Object::Key is not passed to the params;
+    /// // its the responsibility of make_object to add this
     /// ks::shared_ptr<DerivedAgain> =
     ///    ks::make_object<DerivedAgain>(ev_loop,...);
     /// \endcode
     class Object : public std::enable_shared_from_this<Object>
     {
-        friend class ObjectBuilder;
-        typedef Object base_type;
-
     public:
+        using base_type = Object;
+
+        // TODO desc
+        class Key {
+            template<typename T, typename... Args>
+            friend std::shared_ptr<T> make_object(Args&& ...args);
+
+            Key() {} // private constructor
+        };
+
+        /// * Creates the object
+        /// \param key
+        ///     The construction/init key needed to create this
+        ///     object (pass-key idiom). Enforces creation through
+        ///     ks::make_object(...)
+        /// \param event_loop
+        ///     The event loop that will handle events,
+        ///     for this object including slot callbacks
+        Object(Key const &key,
+               shared_ptr<EventLoop> const &event_loop);
+
+        static void Init(Key const &key,
+                         shared_ptr<Object> object);
+
         virtual ~Object();
 
         /// * Returns this Object's unique Id
@@ -202,20 +133,11 @@ namespace ks
         /// * Returns this Object's EventLoop
         shared_ptr<EventLoop> const & GetEventLoop() const;
 
-    protected:
-        /// * Creates the object
-        /// \param event_loop
-        ///     The event loop that will handle events,
-        ///     for this object including slot callbacks
-        Object(shared_ptr<EventLoop> const &event_loop);
-
     private:
         Object(Object const &other) = delete;
         Object(Object &&other) = delete;
         Object & operator = (Object const &) = delete;
         Object & operator = (Object &&) = delete;
-
-        void init();
 
         Id const m_id;
 
@@ -225,6 +147,70 @@ namespace ks
         static Id s_id_counter;
         static Id genId();
     };
+
+    // ============================================================= //
+
+    /// * make_object **must** be called to create any
+    ///   ks::Object-derived object
+    /// * Details: make_object is required because:
+    ///   - Object-derived classes must be wrapped in a shared_ptr to
+    ///     connect to any Signals
+    ///   - shared_ptrs to an object cannot be used within its own
+    ///     constructor
+    /// * As a result, make_object does two phase construction where
+    ///   normal construction can occur in the constructor, and Signal
+    ///   related setup can occur in Object::Init()
+    /// * Note that the args param does not contain Object::Key, as
+    ///   this is inserted by make_object
+    template<typename T, typename... Args>
+    static std::shared_ptr<T> make_object(Args&&...args)
+    {
+        Object::Key key; // creation key
+
+        // call T's constructor
+        shared_ptr<T> object =
+                std::make_shared<T>(
+                    key,std::forward<Args>(args)...);
+
+        // initialize T
+        init_object(key,object);
+
+        return object;
+    }
+
+    /// * Recursively calls Init() on the inheritance hierarchy
+    ///   of an Object-derived class. For example, a chain like
+    ///   Object <- Animal <- Leopard would call Init() in the
+    ///   following order:
+    ///    -# Object::Init()
+    ///    -# Animal::Init()
+    ///    -# Leopard::Init()
+    /// * init_object relies on the Object-derived class correctly
+    ///   specifying its immediate parent in the typedef base_type.
+    ///   See the Object class for more information.
+    template<typename Derived>
+    void init_object(Object::Key const &key,
+                     std::shared_ptr<Derived> d)
+    {
+        // Ensure that a function with signature:
+        // static void Derived::Init(Object::Key const &,shared_ptr<Derived>) exists
+        static_assert(std::is_same<
+                        void(*)(Object::Key const &,shared_ptr<Derived>),
+                        decltype(&Derived::Init)
+                      >::value,
+                      "ks::init_object: Any class T that inherits ks::Object "
+                      "must have an Init member method with the exact signature: "
+                      "static void Init(Object::Key const &,shared_ptr<T>)");
+
+        // Recursively call init_object on the inheritance hierarchy,
+        // stopping when ks::Object is reached
+        using Base = typename Derived::base_type;
+        if(!std::is_same<Base,Derived>::value) {
+            init_object<Base>(key,d);
+        }
+        Derived::Init(key,d);
+    }
+
 
     // ============================================================= //
 

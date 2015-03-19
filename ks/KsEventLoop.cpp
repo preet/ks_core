@@ -28,10 +28,15 @@
 
 namespace ks
 {
-    std::atomic<Id> EventLoop::s_id_counter(0);
+    std::mutex EventLoop::s_id_mutex;
+
+    // Start at one so that an Id of 0
+    // can be considered invalid / unset
+    Id EventLoop::s_id_counter(1);
 
     Id EventLoop::genId()
     {
+        std::lock_guard<std::mutex> lock(s_id_mutex);
         Id id = s_id_counter;
         s_id_counter++;
         return id;

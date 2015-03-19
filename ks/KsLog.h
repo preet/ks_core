@@ -17,6 +17,10 @@
 #ifndef KS_LOG_H
 #define KS_LOG_H
 
+#ifdef KS_ENV_ANDROID
+#include <android/log.h>
+#endif
+
 #include <string>
 #include <vector>
 #include <array>
@@ -58,6 +62,24 @@ namespace ks
         private:
             std::mutex m_mutex;
         };
+        
+        #ifdef KS_ENV_ANDROID
+        // SinkToLogCat
+        // * simple sink that outputs to logcat
+        class SinkToLogCat : public ks::Log::Sink
+        {
+        public:
+            void log(std::string const &line)
+            {
+                m_mutex.lock();
+				__android_log_print(ANDROID_LOG_VERBOSE,"ks",line.c_str());
+                m_mutex.unlock();
+            }
+
+        private:
+            std::mutex m_mutex;
+        };			
+        #endif
 
         // ============================================================= //
 

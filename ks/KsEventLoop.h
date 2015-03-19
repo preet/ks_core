@@ -90,7 +90,8 @@ namespace ks
 
         shared_ptr<Impl> m_impl;
 
-        static std::atomic<Id> s_id_counter;
+        static std::mutex s_id_mutex;
+        static Id s_id_counter;
         static Id genId();
     };
 } // ks

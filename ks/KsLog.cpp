@@ -283,7 +283,11 @@ namespace ks
 
     Log::Logger LOG(
             true, // thread-safe
+#ifdef KS_ENV_ANDROID
+            make_shared<Log::SinkToLogCat>(),
+#else
             make_shared<Log::SinkToStdOut>(), // log to stdout by default
+#endif
             {{ // array init-list
                { new Log::FBRunTimeMs(), new Log::FBCustomStr(": TRACE: KS: ") },
                { new Log::FBRunTimeMs(), new Log::FBCustomStr(": DEBUG: KS: ") },

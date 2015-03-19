@@ -21,7 +21,9 @@ namespace ks
 {
     std::mutex Object::s_id_mutex;
 
-    Id Object::s_id_counter(0);
+    // Start at one so that an Id of 0
+    // can be considered invalid / unset
+    Id Object::s_id_counter(1);
 
     Id Object::genId()
     {
@@ -33,9 +35,14 @@ namespace ks
 
     // ============================================================= //
 
-    Object::Object(shared_ptr<EventLoop> const &event_loop) :
+    Object::Object(Key const &,shared_ptr<EventLoop> const &event_loop) :
         m_id(genId()),
         m_event_loop(event_loop)
+    {
+
+    }
+
+    void Object::Init(Key const &, shared_ptr<Object>)
     {
 
     }
@@ -53,11 +60,6 @@ namespace ks
     shared_ptr<EventLoop> const & Object::GetEventLoop() const
     {
         return m_event_loop;
-    }
-
-    void Object::init()
-    {
-
     }
 
 } // ks

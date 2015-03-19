@@ -3,7 +3,6 @@
 
 #include <ks/KsGlobal.h>
 #include <ks/KsObject.h>
-#include <ks/KsApplication.h>
 #include <ks/KsTimer.h>
 
 using namespace ks;
@@ -54,6 +53,8 @@ TEST_CASE("EventLoop","[evloop]")
 
         SECTION("ProcessEvents, Stop, Wait")
         {
+            LOG.Info() << "KsTest: Expect ProcessEvents without "
+                          "starting event loop warning";
             event_loop->ProcessEvents();    // Should do nothing as the
             event_loop->Stop();             // event loop was never started
             event_loop->Wait();
@@ -104,6 +105,9 @@ TEST_CASE("EventLoop","[evloop]")
 
         SECTION("Start, ProcessEvents (thread)")
         {
+            LOG.Info() << "KsTest: Expect ProcessEvents from "
+                          "wrong thread error";
+
             event_loop->Start();
             event_loop->ProcessEvents();
 
@@ -193,52 +197,47 @@ TEST_CASE("EventLoop","[evloop]")
 
 class Derived0 : public Object
 {
-    friend class ks::ObjectBuilder;
-    typedef ks::Object base_type;
-
 public:
+    using base_type = ks::Object;
+
+    Derived0(Object::Key const &key) :
+        Object(key,nullptr)
+    {
+        m_create += "Construct0";
+    }
+
+    static void Init(Object::Key const &,shared_ptr<Derived0> d)
+    {
+        d->m_create += "Init0";
+    }
+
     ~Derived0()
     {
 
     }
 
     std::string m_create;
-
-protected:
-    Derived0() :
-        Object(nullptr)
-    {
-        m_create += "Construct0";
-    }
-
-private:
-    void init()
-    {
-        m_create += "Init0";
-    }
 };
 
 class Derived1 : public Derived0
 {
-    friend class ks::ObjectBuilder;
-    typedef Derived0 base_type;
-
 public:
-    ~Derived1()
-    {
+    using base_type = Derived0;
 
-    }
-
-protected:
-    Derived1()
+    Derived1(Object::Key const &key) :
+        Derived0(key)
     {
         m_create += "Construct1";
     }
 
-private:
-    void init()
+    static void Init(Object::Key const &,shared_ptr<Derived1> d)
     {
-        m_create += "Init1";
+        d->m_create += "Init1";
+    }
+
+    ~Derived1()
+    {
+
     }
 };
 
@@ -263,18 +262,27 @@ TEST_CASE("Objects","[objects]")
 
 class TrivialReceiver : public Object
 {
-    friend class ks::ObjectBuilder;
-    typedef Object base_type;
+public:
+    using base_type = ks::Object;
 
-protected:
-    TrivialReceiver(shared_ptr<EventLoop> event_loop) :
-        Object(event_loop),
+    TrivialReceiver(Object::Key const &key,
+                    shared_ptr<EventLoop> event_loop) :
+        Object(key,event_loop),
         invoke_count(0)
     {
         // empty
     }
 
-public:
+    static void Init(Object::Key const &,shared_ptr<TrivialReceiver>)
+    {
+        // empty
+    }
+
+    ~TrivialReceiver()
+    {
+
+    }
+
     void SlotCheck(bool * ok)
     {
         (*ok) = true;
@@ -354,12 +362,6 @@ public:
     std::thread::id thread_id;
 
     std::string misc_string;
-
-private:
-    void init()
-    {
-
-    }
 };
 
 // ============================================================= //
@@ -635,10 +637,24 @@ TEST_CASE("Signals","[signals]")
 
 class WakeupReceiver : public Object
 {
-    friend class ks::ObjectBuilder;
-    typedef Object base_type;
-
 public:
+
+    using base_type = ks::Object;
+    WakeupReceiver(Object::Key const &key,
+                   shared_ptr<EventLoop> event_loop) :
+        Object(key,event_loop),
+        m_wakeup_count(0),
+        m_wakeup_limit(0),
+        m_waiting(false)
+    {
+       // empty
+    }
+
+    static void Init(Object::Key const &,shared_ptr<WakeupReceiver>)
+    {
+
+    }
+
     ~WakeupReceiver()
     {
 
@@ -679,22 +695,7 @@ public:
         m_cv.notify_all();
     }
 
-protected:
-    WakeupReceiver(shared_ptr<EventLoop> event_loop) :
-        Object(event_loop),
-        m_wakeup_count(0),
-        m_wakeup_limit(0),
-        m_waiting(false)
-    {
-       // empty
-    }
-
 private:
-    void init()
-    {
-
-    }
-
     uint m_wakeup_count;
     uint m_wakeup_limit;
     bool m_waiting;
@@ -887,164 +888,3 @@ TEST_CASE("ks::Timer","[timers]") {
 
 // ============================================================= //
 // ============================================================= //
-
-class TrivialApplication : public Application
-{
-    friend class ks::ObjectBuilder;
-    typedef Application base_type;
-
-protected:
-    TrivialApplication() :
-        m_ret_val(0),
-        m_keep_running(false)
-    {
-
-    }
-
-public:
-    ~TrivialApplication()
-    {
-
-    }
-
-    sint Run()
-    {
-        this->GetEventLoop()->Start();
-        m_keep_running = true;
-
-        while(m_keep_running) {
-            this->GetEventLoop()->ProcessEvents();
-
-            std::this_thread::sleep_for(
-                std::chrono::milliseconds(16));
-        }
-
-        return m_ret_val;
-    }
-
-private:
-    void quit(sint ret_val)
-    {
-        m_keep_running = false;
-        this->GetEventLoop()->Stop();
-        m_ret_val = ret_val;
-    }
-
-    void init()
-    {
-
-    }
-
-    sint m_ret_val;
-    bool m_keep_running;
-};
-
-// ============================================================= //
-
-class CleanupObject : public Object
-{
-    friend class ks::ObjectBuilder;
-    typedef Object base_type;
-
-protected:
-    CleanupObject(shared_ptr<EventLoop> event_loop,
-                  std::atomic<uint> * i) :
-        Object(event_loop),
-        m_i(i)
-    {
-
-    }
-
-public:
-    ~CleanupObject()
-    {
-
-    }
-
-    void OnCleanup()
-    {
-        // clean up some stuff
-        std::atomic<uint> &i = (*m_i);
-        i--;
-
-        SignalFinishedCleanup.Emit(this->GetId());
-    }
-
-    Signal<Id> SignalFinishedCleanup;
-
-private:
-    void init()
-    {
-
-    }
-
-    std::atomic<uint> * m_i;
-};
-
-// ============================================================= //
-
-TEST_CASE("ks::Application","[application]") {
-
-    shared_ptr<Application> app =
-            make_object<TrivialApplication>();
-
-    SECTION("Test cleanup") {
-
-        std::atomic<uint> i(4);
-
-        // cleanup objects in app event_loop
-        shared_ptr<CleanupObject> r0 =
-                make_object<CleanupObject>(app->GetEventLoop(),&i);
-
-        shared_ptr<CleanupObject> r1 =
-                make_object<CleanupObject>(app->GetEventLoop(),&i);
-
-        // cleanup objects in alt event_loop
-        shared_ptr<EventLoop> event_loop = make_shared<EventLoop>();
-        std::thread thread = EventLoop::LaunchInThread(event_loop);
-
-        shared_ptr<CleanupObject> r2 =
-                make_object<CleanupObject>(event_loop,&i);
-
-        shared_ptr<CleanupObject> r3 =
-                make_object<CleanupObject>(event_loop,&i);
-
-        app->AddCleanupRequest(r0);
-        app->AddCleanupRequest(r1);
-        app->AddCleanupRequest(r2);
-        app->AddCleanupRequest(r3);
-
-        // connect
-        app->SignalStartCleanup.Connect(
-                    r0,&CleanupObject::OnCleanup);
-
-        app->SignalStartCleanup.Connect(
-                    r1,&CleanupObject::OnCleanup);
-
-        app->SignalStartCleanup.Connect(
-                    r2,&CleanupObject::OnCleanup);
-
-        app->SignalStartCleanup.Connect(
-                    r3,&CleanupObject::OnCleanup);
-
-
-        r0->SignalFinishedCleanup.Connect(
-                    app,&Application::OnFinishedCleanup);
-
-        r1->SignalFinishedCleanup.Connect(
-                    app,&Application::OnFinishedCleanup);
-
-        r2->SignalFinishedCleanup.Connect(
-                    app,&Application::OnFinishedCleanup);
-
-        r3->SignalFinishedCleanup.Connect(
-                    app,&Application::OnFinishedCleanup);
-
-        app->SignalStartCleanup.Emit();
-        app->Run();
-
-        EventLoop::RemoveFromThread(event_loop,thread);
-
-        REQUIRE(i==0);
-    }
-}

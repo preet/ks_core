@@ -20,7 +20,7 @@ namespace ks
 {
 	namespace signal_detail
 	{
-		// Start at one so that a Connection Id of 0
+        // Start at one so that an Id of 0
 		// can be considered invalid / unset
         Id g_cid_counter(1);
         std::mutex g_cid_mutex;
