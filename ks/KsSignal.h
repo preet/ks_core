@@ -32,6 +32,8 @@
 
 namespace ks
 {
+    // ============================================================= //
+
     enum class ConnectionType
     {
         Direct,
@@ -49,10 +51,42 @@ namespace ks
 
     } // signal_detail
 
+    // ============================================================= //
+
+    class SignalMutex // implements BasicLockable requirements
+    {
+    public:
+        SignalMutex() { }
+        virtual ~SignalMutex() { }
+
+        virtual void lock()=0;
+        virtual void unlock()=0;
+    };
+
+    class DefaultSignalMutex final : public SignalMutex
+    {
+    public:
+        ~DefaultSignalMutex() { }
+        void lock() { m_mutex.lock(); }
+        void unlock() { m_mutex.unlock(); }
+
+    private:
+        std::mutex m_mutex;
+    };
+
+    class DummySignalMutex final : public SignalMutex
+    {
+    public:
+        ~DummySignalMutex() { }
+        void lock() { }
+        void unlock() { }
+    };
+
+    // ============================================================= //
+
     template<typename... Args>
     class Signal final
     {
-    private:
         struct Connection
         {
             Id id;
@@ -61,8 +95,9 @@ namespace ks
             std::function<void(Args&...)> slot;
         };
 
-    public:
-        Signal()
+    public:       
+        Signal(unique_ptr<SignalMutex> connection_mutex=make_unique<DefaultSignalMutex>()) :
+            m_connection_mutex(std::move(connection_mutex))
         {
             // empty
         }
@@ -89,7 +124,7 @@ namespace ks
 
             // Wrap the function in a lambda and save it along
             // with the receiver in the list of connections
-            std::lock_guard<std::mutex> lock(m_connection_mutex);
+            std::lock_guard<SignalMutex> lock(*m_connection_mutex);
             weak_ptr<T> rcvr_weak_ptr(receiver);
 
             auto id = signal_detail::genId();
@@ -111,7 +146,7 @@ namespace ks
 
         bool Disconnect(Id connection_id)
         {
-            std::lock_guard<std::mutex> lock(m_connection_mutex);
+            std::lock_guard<SignalMutex> lock(*m_connection_mutex);
 
             auto connection_it = findConnection(connection_id);
 
@@ -127,7 +162,7 @@ namespace ks
             // Go through each connection and post an event
             // to invoke the slot with @args
 
-            std::lock_guard<std::mutex> lock(m_connection_mutex);
+            std::lock_guard<SignalMutex> lock(*m_connection_mutex);
 
             uint expired_count=0;
 
@@ -204,7 +239,7 @@ namespace ks
 
         bool ConnectionValid(Id cid)
         {
-            std::lock_guard<std::mutex> lock(m_connection_mutex);
+            std::lock_guard<SignalMutex> lock(*m_connection_mutex);
 
             if(findConnection(cid) != m_list_connections.end()) {
                 return true;
@@ -214,7 +249,7 @@ namespace ks
 
         uint GetConnectionCount()
         {
-            std::lock_guard<std::mutex> lock(m_connection_mutex);
+            std::lock_guard<SignalMutex> lock(*m_connection_mutex);
 
             return m_list_connections.size();
         }
@@ -242,9 +277,11 @@ namespace ks
         }
 
         // Connections
-        std::mutex m_connection_mutex;
+        unique_ptr<SignalMutex> m_connection_mutex;
         std::vector<Connection> m_list_connections;
     };
+
+    // ============================================================= //
 
     // NOTE: --- start bug workaround ---
     // For Signal::Emit(...)

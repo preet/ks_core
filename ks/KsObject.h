@@ -20,6 +20,7 @@
 #include <vector>
 #include <mutex>
 #include <atomic>
+#include <typeindex>
 
 #include <ks/KsGlobal.h>
 #include <ks/KsEventLoop.h>
@@ -163,9 +164,16 @@ namespace ks
     /// * Note that the args param does not contain Object::Key, as
     ///   this is inserted by make_object
     template<typename T, typename... Args>
-    static std::shared_ptr<T> make_object(Args&&...args)
+    std::shared_ptr<T> make_object(Args&&...args)
     {
         Object::Key key; // creation key
+
+        // TODO
+        // Consider using new instead of make_shared because
+        // of an issue where memory isn't freed as long as
+        // weak_ptrs exist:
+        // https://lanzkron.wordpress.com/2012/04/22/...
+        // ...make_shared-almost-a-silver-bullet/
 
         // call T's constructor
         shared_ptr<T> object =
