@@ -21,6 +21,11 @@ SOURCES += \
     $${PATH_KS_CORE}/KsSignal.cpp \
     $${PATH_KS_CORE}/KsTimer.cpp
 
+test {
+    # compile in catch
+    SOURCES += $${PATH_KS_CORE}/test/KsTest.cpp
+}
+
 # thirdparty
 include($${PATH_KS_CORE}/thirdparty/asio/asio.pri)
 
