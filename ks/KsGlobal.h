@@ -98,7 +98,7 @@ namespace ks
 
     /// * This class wraps shared_ptr but requires a unique_ptr to construct
     /// * It forces the function calling Signal.Emit(emit_ptr<...>) to give up
-    //    ownership of whatever is passed to Emit
+    ///   ownership of whatever is passed to Emit
     template<typename T>
     class emit_ptr
     {
