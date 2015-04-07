@@ -117,7 +117,9 @@ namespace ks
     // ============================================================= //
     // ============================================================= //
 
-    PropertyBase::PropertyBase() :
+    PropertyBase::PropertyBase(std::string name="") :
+        m_name(name),
+        m_capture_failed(false),
         m_vx_state(false)
     {
         m_list_inputs.reserve(8);
@@ -127,6 +129,11 @@ namespace ks
     PropertyBase::~PropertyBase()
     {
 
+    }
+
+    std::string const & PropertyBase::GetName() const
+    {
+        return m_name;
     }
 
     std::vector<PropertyBase*> const & PropertyBase::GetInputs() const
@@ -164,8 +171,16 @@ namespace ks
             }
             // already visited, indiciates a cycle
             else if(output->m_vx_state==1) {
-                LOG.Warn() << "Property: Cycle detected";
-                return;
+                LOG.Warn() << "Property: Binding loop detected";
+
+                auto const &name0 = property->GetName();
+                auto const &name1 = output->GetName();
+
+                if((name0.size()) > 0 && (name1.size() > 0)) {
+                    LOG.Warn() << "Property: near "
+                               << name0 << ", " << name1;
+                }
+                continue;
             }
             // else: output vertex is finished,
             // no need to do anything
@@ -219,8 +234,15 @@ namespace ks
     {
         PropertyBase* current = g_current_prop.Get();
         if(current) {
-            // Add this property as an input
-            current->registerInput(this);
+            if(current != this) {
+                // Add this property as an input
+                current->registerInput(this);
+            }
+            else {
+                LOG.Warn() << "Property: properties cannot use "
+                              "themselves as a dependency";
+                m_capture_failed=true;
+            }
         }
     }
 
@@ -257,12 +279,10 @@ namespace ks
         // Add this property to the input's outputs
         // if it doesn't exist
         {
-            auto it = std::find_if(
+            auto it = std::find(
                         input_prop->m_list_outputs.begin(),
                         input_prop->m_list_outputs.end(),
-                        [this](PropertyBase* prop) {
-                            return(prop==this);
-                        });
+                        this);
 
             if(it == input_prop->m_list_outputs.end()) {
                 input_prop->m_list_outputs.push_back(this);
@@ -272,12 +292,10 @@ namespace ks
 
         // Add input if it doesn't exist
         {
-            auto it = std::find_if(
+            auto it = std::find(
                         m_list_inputs.begin(),
                         m_list_inputs.end(),
-                        [input_prop](PropertyBase* prop) {
-                            return(prop==input_prop);
-                        });
+                        input_prop);
 
             if(it == m_list_inputs.end()) {
                 m_list_inputs.push_back(input_prop);

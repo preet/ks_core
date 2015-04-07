@@ -30,7 +30,7 @@ namespace ks
     class PropertyBase
     {
     public:
-        PropertyBase();
+        PropertyBase(std::string name);
         virtual ~PropertyBase();
 
         PropertyBase(PropertyBase const &other) = delete;
@@ -38,6 +38,7 @@ namespace ks
         PropertyBase & operator = (PropertyBase const &) = delete;
         PropertyBase & operator = (PropertyBase &&) = delete;
 
+        std::string const & GetName() const;
         std::vector<PropertyBase*> const & GetInputs() const;
         std::vector<PropertyBase*> const & GetOutputs() const;
 
@@ -54,6 +55,9 @@ namespace ks
         void clearOutputs();
         void setCurrent(PropertyBase* prop);
         virtual void evaluate() = 0;
+
+        std::string m_name;
+        bool m_capture_failed;
 
     private:
         void registerInput(PropertyBase* input_prop);
@@ -78,13 +82,26 @@ namespace ks
         using BindingFn = std::function<T()>;
         using NotifierFn = std::function<void(T const &)>;
 
-        Property()
+        Property() :
+            PropertyBase("")
         {
 
         }
 
         Property(T value,
                  NotifierFn notifier=NotifierFn{}) :
+            PropertyBase(""),
+            m_value(value),
+            m_binding_init(false),
+            m_notifier(notifier)
+        {
+
+        }
+
+        Property(std::string name,
+                 T value,
+                 NotifierFn notifier=NotifierFn{}) :
+            PropertyBase(std::move(name)),
             m_value(value),
             m_binding_init(false),
             m_notifier(notifier)
@@ -94,6 +111,18 @@ namespace ks
 
         Property(BindingFn binding,
                  NotifierFn notifier=NotifierFn{}) :
+            PropertyBase(""),
+            m_binding(binding),
+            m_binding_init(false),
+            m_notifier(notifier)
+        {
+            evaluate();
+        }
+
+        Property(std::string name,
+                 BindingFn binding,
+                 NotifierFn notifier=NotifierFn{}) :
+            PropertyBase(std::move(name)),
             m_binding(binding),
             m_binding_init(false),
             m_notifier(notifier)
@@ -137,9 +166,10 @@ namespace ks
 
         void Bind(BindingFn binding)
         {
-            clearInputs();
+            clearInputs(); // resets binding!
 
             m_binding = std::move(binding);
+
             evaluate(); // captures new inputs
 
             evaluateOutputs();
@@ -150,19 +180,29 @@ namespace ks
             if(m_binding) {
                 if(m_binding_init) {
                     m_value = m_binding();
+
+                    if(m_notifier) {
+                        m_notifier(m_value);
+                    }
                 }
                 else {
                     // capture inputs for this property
+                    m_capture_failed = false;
                     setCurrent(this);
                     m_value = m_binding();
                     setCurrent(nullptr);
-                    m_binding_init = true;
-                }
-            }
 
-            // Notify
-            if(m_notifier) {
-                m_notifier(m_value);
+                    if(!m_capture_failed) {
+                        m_binding_init = true;
+
+                        if(m_notifier) {
+                            m_notifier(m_value);
+                        }
+                    }
+                    else {
+                        resetBinding();
+                    }
+                }
             }
         }
 

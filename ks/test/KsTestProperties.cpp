@@ -5,15 +5,27 @@
 
 using namespace ks;
 
+bool ContainsProperty(std::vector<PropertyBase*> list_props,
+                      PropertyBase* prop)
+{
+    auto it = std::find(
+                list_props.begin(),
+                list_props.end(),
+                prop);
+
+    return(it != list_props.end());
+}
+
 TEST_CASE("Properties","[property]")
 {
     SECTION("Construction")
     {
         // Construct with value
         Property<uint> width{5};
-        Property<uint> height{6};
+        Property<uint> height{"height",6}; // +name
         REQUIRE(width.Get() == 5);
         REQUIRE(height.Get() == 6);
+        REQUIRE(height.GetName() == "height");
 
         // Construct with binding (no notifier)
         Property<uint> perimeter {
@@ -26,6 +38,12 @@ TEST_CASE("Properties","[property]")
         REQUIRE(width.GetOutputs().size()==1);
         REQUIRE(height.GetOutputs().size()==1);
 
+        // binding+name
+        Property<uint> half_perimeter {
+            "half perimeter",
+            [&](){ return (perimeter.Get()*2); }
+        };
+
         // Construct with binding and notifier
         Signal<uint> SignalArea0;
         Property<uint> area0 {
@@ -34,7 +52,8 @@ TEST_CASE("Properties","[property]")
         };
 
         Signal<> SignalArea1;
-        Property<uint> area1 {
+        Property<uint> area1 { //+name
+            "area1",
             [&](){ return width.Get()*height.Get(); }, // binding func
             [&](uint const &){ SignalArea1.Emit(); } // notifier func
         };
@@ -175,6 +194,32 @@ TEST_CASE("Properties","[property]")
             REQUIRE(mm.Get() == 3300);
             REQUIRE(um.Get() == 3300000);
         }
+
+        SECTION("Verify sequential binding assignment")
+        {
+            Property<double> width{1};
+            Property<double> height{2};
+            Property<double> depth{3};
+            Property<double> volume{
+                [&](){ return(width.Get()*height.Get()*depth.Get());  }
+            };
+
+            REQUIRE(ContainsProperty(volume.GetInputs(),&width));
+            REQUIRE(ContainsProperty(volume.GetInputs(),&height));
+            REQUIRE(ContainsProperty(volume.GetInputs(),&depth));
+
+            Property<double> radius{4};
+
+            volume.Bind({
+                [&](){
+                    double const r = radius.Get();
+                    return (4.0/3.0) * (3.1416) * (r*r*r);
+                }
+            });
+
+            REQUIRE(volume.GetInputs().size() == 1);
+            REQUIRE(ContainsProperty(volume.GetInputs(),&radius));
+        }
     }
 
     SECTION("Redundant property changes")
@@ -306,6 +351,123 @@ TEST_CASE("Properties","[property]")
 
     SECTION("Binding loops")
     {
-        // TODO
+        // Check for a self loop where a Property
+        // refers to itself
+        LOG.Info() << "Expect warning about property using "
+                      "itself as a dependency:";
+        Property<uint> x;
+        x.Bind({
+            [&](){ return x.Get() + 1; }
+        });
+        REQUIRE(x.GetInputs().size() == 0);
+        REQUIRE(x.GetOutputs().size() == 0);
+        REQUIRE(x.GetBindingValid() == false);
+
+        // Binding loop without self dependencies
+        // b,c,d form a loop
+        LOG.Info() << "Expect warning about binding loop:";
+        Property<uint> a{"a",1};
+        Property<uint> d{"d",1};
+        Property<uint> b{"b", [&](){ return a.Get() + d.Get(); } };
+        Property<uint> c{"c", [&](){ return b.Get()*1; } };
+        d.Bind({ [&](){ return c.Get()*1; } });
+    }
+
+    SECTION("Thread local properties")
+    {
+        // The test results are collected and then verified
+        // serially at the end because Catch is not thread safe:
+        // https://github.com/philsquared/Catch/issues/99
+
+        std::mutex m;
+        std::vector<bool> list_all_results;
+
+        auto test0 = [&]() {
+            Property<double> v{12.0};
+            Property<double> r0{50.0};
+            Property<double> r1{100.0};
+            Property<double> r2{200.0};
+
+            Property<double> i{
+                [&](){ return ((r0.Get()+r1.Get()+r2.Get())/v.Get()); }
+            };
+
+            Property<double> d0{
+                [&](){ return i.Get()*r0.Get(); }
+            };
+
+            Property<double> d1{
+                [&](){ return i.Get()*r1.Get(); }
+            };
+
+            Property<double> d2{
+                [&](){ return i.Get()*r2.Get(); }
+            };
+
+            std::vector<bool> list_results;
+
+            for(double alt=12.0; alt < 14.0; alt+=0.25) {
+                v.Assign(alt);
+                double const i_val = 350.0/alt;
+                list_results.push_back(i.Get() == i_val);
+            }
+
+            m.lock();
+            list_all_results.insert(
+                        list_all_results.begin(),
+                        list_results.begin(),
+                        list_results.end());
+            m.unlock();
+        };
+
+        auto test1 = [&]() {
+            Property<uint> x{1};
+            Property<uint> y{2};
+            Property<uint> perimeter {
+                [&](){ return 2*(x.Get()+y.Get()); }
+            };
+            Property<uint> area {
+                [&](){ return x.Get()*y.Get(); }
+            };
+
+            std::vector<bool> list_results;
+            for(uint i=2; i < 10; i++) {
+                x.Assign(i);
+                uint const p = 2*(x.Get()+y.Get());
+                uint const a = x.Get()*y.Get();
+                bool p_ok = (p == perimeter.Get());
+                bool a_ok = (a == area.Get());
+                list_results.push_back(p_ok&&a_ok);
+            }
+
+            m.lock();
+            list_all_results.insert(
+                        list_all_results.begin(),
+                        list_results.begin(),
+                        list_results.end());
+            m.unlock();
+        };
+
+        std::vector<std::thread> list_threads;
+        for(uint i=0; i < 8; i++) {
+            if(i%2==0) {
+                std::thread thread(test0);
+                list_threads.push_back(std::move(thread));
+            }
+            else {
+                std::thread thread(test1);
+                list_threads.push_back(std::move(thread));
+            }
+        }
+        for(auto &t : list_threads) {
+            t.join();
+        }
+
+        bool all_ok=true;
+        for(auto ok : list_all_results) {
+            all_ok = all_ok && ok;
+        }
+
+        REQUIRE(all_ok);
     }
 }
