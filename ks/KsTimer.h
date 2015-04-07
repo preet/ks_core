@@ -26,80 +26,32 @@ namespace ks
                   "ERROR: std::chrono::high_resolution_clock's duration period "
                   "resolution must match or be better than a millisecond");
 
-    class Timer : public Object
+    class Timer : public ks::Object
     {
         friend class TimeoutHandler;
         friend class EventLoop;
 
     public:
-        using base_type = Object;
+        using base_type = ks::Object;
 
-        Timer(Object::Key const &key,
-              shared_ptr<EventLoop> event_loop) :
-            Object(key,event_loop),
-            m_interval_ms(0),
-            m_repeating(false),
-            m_active(false)
-        {
+        Timer(ks::Object::Key const &key,
+              shared_ptr<EventLoop> event_loop);
 
-        }
+        static void Init(ks::Object::Key const &,
+                         shared_ptr<Timer> const &);
 
-        static void Init(Object::Key const &,
-                         shared_ptr<Timer>)
-        {
+        ~Timer();
 
-        }
+        std::chrono::milliseconds GetInterval() const;
 
-        ~Timer()
-        {
-            Stop();
-        }
+        bool GetRepeating() const;
 
-        std::chrono::milliseconds GetInterval() const
-        {
-            return m_interval_ms;
-        }
-
-        bool GetRepeating() const
-        {
-            return m_repeating;
-        }
-
-        bool GetActive() const
-        {
-            return m_active;
-        }
+        bool GetActive() const;
 
         void Start(std::chrono::milliseconds interval_ms,
-                   bool repeating)
-        {
-            m_interval_ms = interval_ms;
-            m_repeating = repeating;
+                   bool repeating);
 
-            shared_ptr<Timer> this_timer =
-                    std::static_pointer_cast<Timer>(
-                        shared_from_this());
-
-            unique_ptr<Event> timer_event =
-                    make_unique<StartTimerEvent>(
-                        this->GetId(),
-                        this_timer,
-                        m_interval_ms,
-                        m_repeating);
-
-            this->GetEventLoop()->PostEvent(
-                        std::move(timer_event));
-        }
-
-        void Stop()
-        {
-            unique_ptr<Event> timer_event =
-                    make_unique<StopTimerEvent>(
-                        this->GetId());
-
-            this->GetEventLoop()->PostEvent(
-                        std::move(timer_event));
-        }
+        void Stop();
 
         Signal<> SignalTimeout;
 

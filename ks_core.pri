@@ -30,6 +30,7 @@ test {
 
 test_core {
     SOURCES += $${PATH_KS_CORE}/test/KsTestCore.cpp
+    SOURCES += $${PATH_KS_CORE}/test/KsTestProperties.cpp
 }
 
 # thirdparty

@@ -124,7 +124,7 @@ namespace ks
                shared_ptr<EventLoop> const &event_loop);
 
         static void Init(Key const &key,
-                         shared_ptr<Object> object);
+                         shared_ptr<Object> const &object);
 
         virtual ~Object();
 
@@ -203,12 +203,12 @@ namespace ks
         // Ensure that a function with signature:
         // static void Derived::Init(Object::Key const &,shared_ptr<Derived>) exists
         static_assert(std::is_same<
-                        void(*)(Object::Key const &,shared_ptr<Derived>),
+                        void(*)(Object::Key const &,shared_ptr<Derived> const &),
                         decltype(&Derived::Init)
                       >::value,
                       "ks::init_object: Any class T that inherits ks::Object "
                       "must have an Init member method with the exact signature: "
-                      "static void Init(Object::Key const &,shared_ptr<T>)");
+                      "static void Init(Object::Key const &,shared_ptr<T> const &)");
 
         // Recursively call init_object on the inheritance hierarchy,
         // stopping when ks::Object is reached

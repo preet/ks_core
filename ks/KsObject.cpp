@@ -42,7 +42,7 @@ namespace ks
 
     }
 
-    void Object::Init(Key const &, shared_ptr<Object>)
+    void Object::Init(Key const &, shared_ptr<Object> const &)
     {
 
     }

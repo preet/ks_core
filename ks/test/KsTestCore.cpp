@@ -205,7 +205,7 @@ public:
         m_create += "Construct0";
     }
 
-    static void Init(Object::Key const &,shared_ptr<Derived0> d)
+    static void Init(Object::Key const &,shared_ptr<Derived0> const &d)
     {
         d->m_create += "Init0";
     }
@@ -229,7 +229,7 @@ public:
         m_create += "Construct1";
     }
 
-    static void Init(Object::Key const &,shared_ptr<Derived1> d)
+    static void Init(Object::Key const &,shared_ptr<Derived1> const &d)
     {
         d->m_create += "Init1";
     }
@@ -272,7 +272,8 @@ public:
         // empty
     }
 
-    static void Init(Object::Key const &,shared_ptr<TrivialReceiver>)
+    static void Init(Object::Key const &,
+                     shared_ptr<TrivialReceiver> const &)
     {
         // empty
     }
@@ -649,7 +650,8 @@ public:
        // empty
     }
 
-    static void Init(Object::Key const &,shared_ptr<WakeupReceiver>)
+    static void Init(Object::Key const &,
+                     shared_ptr<WakeupReceiver> const &)
     {
 
     }
