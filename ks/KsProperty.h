@@ -75,7 +75,15 @@ namespace ks
 
     // ============================================================= //
 
-    template<typename T>
+    struct ReadWrite {
+        static constexpr bool access=true;
+    };
+
+    struct ReadOnly {
+        static constexpr bool access=false;
+    };
+
+    template<typename T, typename AccessType=ReadWrite>
     class Property final : public PropertyBase
     {
     public:
@@ -149,6 +157,10 @@ namespace ks
 
         void Assign(T value)
         {
+            static_assert(AccessType::access,
+                          "Cannot call Assign() on "
+                          "a read-only property");
+
             // Clear inputs and binding since
             // assignment breaks bindings
             clearInputs();
@@ -166,6 +178,10 @@ namespace ks
 
         void Bind(BindingFn binding)
         {
+            static_assert(AccessType::access,
+                          "Cannot call Bind() on "
+                          "a read-only property");
+
             clearInputs(); // resets binding!
 
             m_binding = std::move(binding);

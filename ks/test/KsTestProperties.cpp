@@ -67,6 +67,55 @@ TEST_CASE("Properties","[property]")
         REQUIRE(height.GetOutputs().size()==3);
     }
 
+    SECTION("Construction / ReadOnly")
+    {
+        // Construct with value
+        Property<uint,ReadOnly> width{5};
+        Property<uint,ReadOnly> height{"height",6}; // +name
+        REQUIRE(width.Get() == 5);
+        REQUIRE(height.Get() == 6);
+        REQUIRE(height.GetName() == "height");
+
+        // Construct with binding (no notifier)
+        Property<uint,ReadOnly> perimeter {
+            [&](){ return 2*width.Get() + 2*height.Get(); } // binding func
+        };
+        REQUIRE(perimeter.Get() == 22);
+        REQUIRE(perimeter.GetInputs().size()==2);
+        REQUIRE(perimeter.GetOutputs().size()==0);
+
+        REQUIRE(width.GetOutputs().size()==1);
+        REQUIRE(height.GetOutputs().size()==1);
+
+        // binding+name
+        Property<uint,ReadOnly> half_perimeter {
+            "half perimeter",
+            [&](){ return (perimeter.Get()*2); }
+        };
+
+        // Construct with binding and notifier
+        Signal<uint> SignalArea0;
+        Property<uint,ReadOnly> area0 {
+            [&](){ return width.Get()*height.Get(); }, // binding func
+            [&](uint const &a){ SignalArea0.Emit(a); } // notifier func
+        };
+
+        Signal<> SignalArea1;
+        Property<uint,ReadOnly> area1 { //+name
+            "area1",
+            [&](){ return width.Get()*height.Get(); }, // binding func
+            [&](uint const &){ SignalArea1.Emit(); } // notifier func
+        };
+        REQUIRE(area0.Get() == 30);
+        REQUIRE(area0.GetInputs().size() == 2);
+
+        REQUIRE(area1.Get() == 30);
+        REQUIRE(area1.GetInputs().size() == 2);
+
+        REQUIRE(width.GetOutputs().size()==3);
+        REQUIRE(height.GetOutputs().size()==3);
+    }
+
     SECTION("Destruction")
     {
         Property<uint> width{4};
