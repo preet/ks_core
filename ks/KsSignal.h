@@ -187,8 +187,20 @@ namespace ks
                         // TODO desc
                         if(receiver->GetEventLoop()->GetThreadId() ==
                                 std::this_thread::get_id()) {
-                            // Process any queued events
-                            receiver->GetEventLoop()->ProcessEvents();
+
+                            // TODO:
+                            // We could potentially process any queued events
+                            // here first before invoking the slot:
+                            //
+                            // receiver->GetEventLoop()->ProcessEvents();
+                            //
+                            // However:
+                            // * Processing events might cause this signal's
+                            //   Emit() to be called recursively which could
+                            //   cause a deadlock (we could work around this
+                            //   by using recursive mutexes though)
+                            // * Chains of blocking queued signals result in
+                            //   multiple levels of recursion
 
                             // invoke this slot directly
                             directInvoke(args...,connection);

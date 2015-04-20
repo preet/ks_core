@@ -83,6 +83,28 @@ namespace ks
         static constexpr bool access=false;
     };
 
+    template<typename T>
+    struct PropertyInit final
+    {
+        using BindingFn = std::function<T()>;
+        using NotifierFn = std::function<void(T const &)>;
+
+        PropertyInit(T value) : has_value(true),value(value) {}
+        PropertyInit(std::string name, T value) : name(name),has_value(true),value(value) {}
+
+        PropertyInit(BindingFn b) : has_value(false),binding(b) {}
+        PropertyInit(std::string name, BindingFn b) : name(name),has_value(false),binding(b) {}
+
+        PropertyInit(BindingFn b, NotifierFn n) : has_value(false),binding(b),notifier(n) {}
+        PropertyInit(std::string name, BindingFn b, NotifierFn n) : name(name),has_value(false),binding(b),notifier(n) {}
+
+        std::string name;
+        bool has_value;
+        T value;
+        BindingFn binding;
+        NotifierFn notifier;
+    };
+
     template<typename T, typename AccessType=ReadWrite>
     class Property final : public PropertyBase
     {
@@ -189,6 +211,28 @@ namespace ks
             evaluate(); // captures new inputs
 
             evaluateOutputs();
+        }
+
+        void SetName(std::string name)
+        {
+            m_name = std::move(name);
+        }
+
+        void SetNotifier(NotifierFn notifier)
+        {
+            m_notifier = std::move(notifier);
+        }
+
+        void SetAll(PropertyInit<T> set_all)
+        {
+            SetName(set_all.name);
+            SetNotifier(set_all.notifier);
+            if(set_all.has_value) {
+                Assign(set_all.value);
+            }
+            else {
+                Bind(set_all.binding);
+            }
         }
 
         void evaluate()
