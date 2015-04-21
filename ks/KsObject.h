@@ -123,8 +123,8 @@ namespace ks
         Object(Key const &key,
                shared_ptr<EventLoop> const &event_loop);
 
-        static void Init(Key const &key,
-                         shared_ptr<Object> const &object);
+        void Init(Key const &key,
+                  shared_ptr<Object> const &object);
 
         virtual ~Object();
 
@@ -186,6 +186,24 @@ namespace ks
         return object;
     }
 
+
+    // * Uses sfinae to ensure that a type T has a member function
+    //   named T::Init that matches a specific signature
+    // * Returns std::false_type if type T doesn't contain a member
+    //   function named Init or if the signature doesn't match
+    struct check_init_signature
+    {
+        template<typename T, typename X=decltype(&T::Init)>
+        static std::is_same<void(T::*)(Object::Key const &,shared_ptr<T> const &), X> test(int);
+
+        template<typename...>
+        static std::false_type test(...);
+    };
+
+    template<typename T>
+    struct has_init_signature : decltype(check_init_signature::test<T>(0)) {};
+
+
     /// * Recursively calls Init() on the inheritance hierarchy
     ///   of an Object-derived class. For example, a chain like
     ///   Object <- Animal <- Leopard would call Init() in the
@@ -198,17 +216,14 @@ namespace ks
     ///   See the Object class for more information.
     template<typename Derived>
     void init_object(Object::Key const &key,
-                     std::shared_ptr<Derived> d)
+                     std::shared_ptr<Derived> const &d)
     {
         // Ensure that a function with signature:
-        // static void Derived::Init(Object::Key const &,shared_ptr<Derived>) exists
-        static_assert(std::is_same<
-                        void(*)(Object::Key const &,shared_ptr<Derived> const &),
-                        decltype(&Derived::Init)
-                      >::value,
+        // void Derived::Init(Object::Key const &,shared_ptr<Derived>) exists
+        static_assert(has_init_signature<Derived>::value,
                       "ks::init_object: Any class T that inherits ks::Object "
                       "must have an Init member method with the exact signature: "
-                      "static void Init(Object::Key const &,shared_ptr<T> const &)");
+                      "void Init(Object::Key const &,shared_ptr<T> const &)");
 
         // Recursively call init_object on the inheritance hierarchy,
         // stopping when ks::Object is reached
@@ -216,7 +231,7 @@ namespace ks
         if(!std::is_same<Base,Derived>::value) {
             init_object<Base>(key,d);
         }
-        Derived::Init(key,d);
+        d->Init(key,d);
     }
 
 

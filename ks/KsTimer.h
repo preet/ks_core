@@ -37,8 +37,8 @@ namespace ks
         Timer(ks::Object::Key const &key,
               shared_ptr<EventLoop> event_loop);
 
-        static void Init(ks::Object::Key const &,
-                         shared_ptr<Timer> const &);
+        void Init(ks::Object::Key const &,
+                  shared_ptr<Timer> const &);
 
         ~Timer();
 
