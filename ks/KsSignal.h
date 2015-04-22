@@ -177,17 +177,33 @@ namespace ks
                         // post the slot to the receivers thread
 
                         // NOTE: passing std::bind to make_unique
-                        // here causes an extra move
+                        // here causes an extra move so we use new
                         unique_ptr<Event> event(new SlotEvent(
                             std::bind(connection.slot,args...)));
 
                         receiver->GetEventLoop()->PostEvent(std::move(event));
                     }
                     else {
-                        // TODO desc
-                        if(receiver->GetEventLoop()->GetThreadId() ==
-                                std::this_thread::get_id()) {
+                        // Check if the receiver event loop is active
 
+                        // NOTE: Foregoing this check will result in deadlock if
+                        // the event loop is inactive. The check is not mandatory
+                        // if it can be guaranteed no blocking signals will be
+                        // emitted before the required event loops have started.
+                        std::thread::id evl_thread_id;
+                        bool evl_started;
+                        bool evl_running;
+                        receiver->GetEventLoop()->GetState(evl_thread_id,
+                                                           evl_started,
+                                                           evl_running);
+                        if(!evl_started) {
+                            LOG.Error() << "Signal: Attempted to emit a Blocking "
+                                           "signal connected to a receiver with "
+                                           "an inactive event loop";
+                            return;
+                        }
+
+                        if(evl_thread_id == std::this_thread::get_id()) {
                             // TODO:
                             // We could potentially process any queued events
                             // here first before invoking the slot:

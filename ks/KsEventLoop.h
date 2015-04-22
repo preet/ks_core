@@ -50,6 +50,9 @@ namespace ks
         std::thread::id GetThreadId();
         bool GetStarted();
         bool GetRunning();
+        void GetState(std::thread::id& thread_id,
+                      bool& started,
+                      bool& running);
 
         void Start();
         void Run(bool *ok=nullptr);

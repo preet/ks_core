@@ -109,7 +109,7 @@ namespace ks
             }
 
             // Emit the timeout signal
-            timer->SignalTimeout.Emit();
+            timer->signal_timeout.Emit();
 
             // If this is a repeating timer, post another timeout
             if(m_timerinfo->repeat) {
@@ -245,6 +245,16 @@ namespace ks
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         return m_running;
+    }
+
+    void EventLoop::GetState(std::thread::id& thread_id,
+                             bool& started,
+                             bool& running)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        thread_id = m_thread_id;
+        started = m_started;
+        running = m_running;
     }
 
     void EventLoop::Start()

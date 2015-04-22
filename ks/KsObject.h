@@ -61,16 +61,16 @@ namespace ks
     ///    // Constructors must have *Object::Key const &* as their
     ///    // first parameter. This enforces creation of all Objects
     ///    // and any derivatives through ks::make_object
-    ///       Derived(Key const &key,
-    ///               shared_ptr<ks::EventLoop> const &evloop,
-    ///               /* other args */) :
-    ///          ks::Object(key,evloop) {}
+    ///    Derived(Key const &key,
+    ///            shared_ptr<ks::EventLoop> const &evloop,
+    ///            /* other args */) :
+    ///       ks::Object(key,evloop) {}
     ///
     ///    // Each Object-derived class should declare a static Init()
     ///    // member method with the exact signature shown
     ///    // where any initialization that requires access to
     ///    // 'shared_from_this' (ie for connecting to signals) can occur
-    ///       static void Init(Object::Key const &,shared_ptr<Derived>) {}
+    ///    void Init(Object::Key const &,shared_ptr<Derived>) {}
     /// };
     ///
     /// // A more succint example
@@ -84,7 +84,7 @@ namespace ks
     ///                 shared_ptr<ks::EventLoop> const &evloop, /* other args */) :
     ///         Derived(key,evloop) {}
     ///
-    ///    static void Init(Key const &,shared_ptr<DerivedAgain>) {}
+    ///    void Init(Key const &,shared_ptr<DerivedAgain>) {}
     /// };
     /// \endcode
     /// * Using make_object:

@@ -53,7 +53,7 @@ namespace ks
 
         void Stop();
 
-        Signal<> SignalTimeout;
+        Signal<> signal_timeout;
 
     private:
         std::chrono::milliseconds m_interval_ms;

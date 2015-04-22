@@ -749,7 +749,7 @@ TEST_CASE("ks::Timer","[timers]") {
         shared_ptr<WakeupReceiver> receiver =
                 make_object<WakeupReceiver>(event_loop);
 
-        timer->SignalTimeout.Connect(
+        timer->signal_timeout.Connect(
                     receiver,
                     &WakeupReceiver::OnWakeup);
 
