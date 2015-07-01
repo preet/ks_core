@@ -19,6 +19,7 @@
 
 #include <functional>
 #include <condition_variable>
+#include <future>
 
 #include <ks/KsGlobal.h>
 #include <ks/KsLog.h>
@@ -32,13 +33,9 @@ namespace ks
         enum class Type : u8
         {
             Null,
-
             Slot,
-
             BlockingSlot,
-
             StartTimer,
-
             StopTimer
         };
 

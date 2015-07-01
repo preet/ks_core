@@ -29,6 +29,7 @@
 namespace ks
 {
     class Event;
+    class Task;
     class StartTimerEvent;
     class StopTimerEvent;
     class TimerInfo;
@@ -60,6 +61,7 @@ namespace ks
         void Wait();
         bool ProcessEvents();
         void PostEvent(unique_ptr<Event> event);
+        void PostEvent(shared_ptr<Task> event);
         void PostStopEvent();
 
         static std::thread LaunchInThread(shared_ptr<EventLoop> event_loop,

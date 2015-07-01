@@ -38,7 +38,7 @@ namespace ks
     {
         Direct,
         Queued,
-        BlockingQueued
+        Blocking
     };
 
     namespace signal_detail
@@ -190,6 +190,7 @@ namespace ks
                         // the event loop is inactive. The check is not mandatory
                         // if it can be guaranteed no blocking signals will be
                         // emitted before the required event loops have started.
+
                         std::thread::id evl_thread_id;
                         bool evl_started;
                         bool evl_running;
@@ -197,6 +198,7 @@ namespace ks
                                                            evl_started,
                                                            evl_running);
                         if(!evl_started) {
+                            // TODO: Add a test for this case
                             LOG.Error() << "Signal: Attempted to emit a Blocking "
                                            "signal connected to a receiver with "
                                            "an inactive event loop";

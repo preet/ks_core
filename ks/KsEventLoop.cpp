@@ -23,6 +23,7 @@
 // ks
 #include <ks/KsLog.h>
 #include <ks/KsEvent.h>
+#include <ks/KsTask.h>
 #include <ks/KsTimer.h>
 #include <ks/KsEventLoop.h>
 
@@ -135,6 +136,42 @@ namespace ks
 
     private:
         shared_ptr<TimerInfo> m_timerinfo;
+    };
+
+    // ============================================================= //
+
+    class TaskHandler
+    {
+    public:
+        TaskHandler(shared_ptr<Task> task,
+                    asio::io_service* service) :
+            m_task(task),
+            m_service(service)
+        {
+            // empty
+        }
+
+        ~TaskHandler()
+        {
+            // empty
+        }
+
+        TaskHandler(TaskHandler const &);
+
+        TaskHandler(TaskHandler&& other)
+        {
+            m_task = std::move(other.m_task);
+            m_service = other.m_service;
+        }
+
+        void operator()()
+        {
+            m_task->Invoke();
+        }
+
+    private:
+        shared_ptr<Task> m_task;
+        asio::io_service * m_service;
     };
 
     // ============================================================= //
@@ -358,6 +395,19 @@ namespace ks
                             event,
                             &(m_impl->m_asio_service)));
         }
+    }
+
+    void EventLoop::PostEvent(shared_ptr<Task> task_event)
+    {
+        if(task_event->GetThreadId() == this->GetThreadId()) {
+            task_event->Invoke();
+            return;
+        }
+
+        m_impl->m_asio_service.post(
+                    TaskHandler(
+                        task_event,
+                        &(m_impl->m_asio_service)));
     }
 
     void EventLoop::PostStopEvent()

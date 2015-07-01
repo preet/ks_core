@@ -3,6 +3,7 @@
 #include <ks/KsGlobal.h>
 #include <ks/KsObject.h>
 #include <ks/KsTimer.h>
+#include <ks/KsTask.h>
 
 using namespace ks;
 
@@ -194,6 +195,46 @@ TEST_CASE("EventLoop","[evloop]")
 // ============================================================= //
 // ============================================================= //
 
+TEST_CASE("Tasks","[tasks]")
+{
+    bool ok = false;
+    shared_ptr<EventLoop> evl = make_shared<EventLoop>();
+
+    uint some_work=0;
+    auto some_task =
+            make_shared<Task>(
+                [&some_work](){
+                    for(uint i=0; i < 1000; i++) {
+                        some_work++;
+                    }
+                });
+
+    SECTION("Same thread")
+    {
+        evl->Start();
+        evl->PostEvent(some_task);
+        REQUIRE(some_work==1000);
+
+        // We didn't call evl->ProcessEvents so the
+        // Task must have been Invoked during the
+        // PostEvent call
+    }
+
+    SECTION("Different thread")
+    {
+        std::thread thread = EventLoop::LaunchInThread(evl,&ok);
+        evl->PostEvent(some_task);
+
+        some_task->Wait();
+        REQUIRE(some_work==1000);
+
+        EventLoop::RemoveFromThread(evl,thread,true);
+    }
+}
+
+// ============================================================= //
+// ============================================================= //
+
 class Derived0 : public Object
 {
 public:
@@ -331,7 +372,7 @@ public:
         signal_self.Connect(
                     this_receiver,
                     &TrivialReceiver::SlotSignalSelfBlocking,
-                    ConnectionType::BlockingQueued);
+                    ConnectionType::Blocking);
 
         // If the slot associated with signal_self is invoked
         // after the string append (ie. its queued), the string
@@ -597,7 +638,7 @@ TEST_CASE("Signals","[signals]")
             signal_self.Connect(
                         receiver,
                         &TrivialReceiver::SlotSignalSelfBlocking,
-                        ConnectionType::BlockingQueued);
+                        ConnectionType::Blocking);
 
             signal_self.Emit(0,event_loop.get());
             thread.join();
@@ -613,7 +654,7 @@ TEST_CASE("Signals","[signals]")
             signal_count.Connect(
                         receiver,
                         &TrivialReceiver::SlotCount,
-                        ConnectionType::BlockingQueued);
+                        ConnectionType::Blocking);
 
             // Calling Emit() should block this thread until
             // receivers corresponding slot is invoked. To test
