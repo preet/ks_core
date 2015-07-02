@@ -25,7 +25,7 @@ namespace ks
         FBRunTimeMs::FBRunTimeMs() :
             m_time_str("00:00:00.000"),
             m_start(std::chrono::system_clock::now()),
-            m_list_num_chars({'0','1','2','3','4','5','6','7','8','9'})
+            m_list_num_chars({{'0','1','2','3','4','5','6','7','8','9'}})
         {
             // empty
         }

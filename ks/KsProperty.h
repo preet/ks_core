@@ -30,7 +30,7 @@ namespace ks
     class PropertyBase
     {
     public:
-        PropertyBase(std::string name);
+        PropertyBase(std::string name="");
         virtual ~PropertyBase();
 
         PropertyBase(PropertyBase const &other) = delete;

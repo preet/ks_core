@@ -32,11 +32,11 @@ namespace ks
     class Task;
     class StartTimerEvent;
     class StopTimerEvent;
-    class TimerInfo;
+    struct TimerInfo;
 
     class EventLoop final
     {
-        class Impl; // hides the implementation
+        struct Impl; // hides the implementation
 
     public:
         EventLoop();

@@ -117,7 +117,7 @@ namespace ks
     // ============================================================= //
     // ============================================================= //
 
-    PropertyBase::PropertyBase(std::string name="") :
+    PropertyBase::PropertyBase(std::string name) :
         m_name(name),
         m_capture_failed(false),
         m_vx_state(false)
