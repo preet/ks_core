@@ -22,6 +22,7 @@
 #include <sstream>
 #include <type_traits>
 #include <utility>
+#include <iomanip>
 
 /// \namespace ks
 /// * The main namespace for lib ks
@@ -46,16 +47,16 @@
 namespace ks
 {
     typedef unsigned int uint;
-    typedef uint8_t u8;
-    typedef uint16_t u16;
-    typedef uint32_t u32;
-    typedef uint64_t u64;
+    typedef std::uint8_t u8;
+    typedef std::uint16_t u16;
+    typedef std::uint32_t u32;
+    typedef std::uint64_t u64;
 
     typedef int sint;
-    typedef int8_t s8;
-    typedef int16_t s16;
-    typedef int32_t s32;
-    typedef int64_t s64;
+    typedef std::int8_t s8;
+    typedef std::int16_t s16;
+    typedef std::int32_t s32;
+    typedef std::int64_t s64;
 
     /// * The standard data type for Ids in ks is a 64-bit
     ///   unsigned integer. Ids usually aren't recycled and
@@ -121,6 +122,20 @@ namespace ks
     {
         std::ostringstream oss;
         oss << val;
+        return oss.str();
+    }
+
+    template<typename T>
+    std::string to_string_format(T const &val,
+                                 uint precision,
+                                 uint width,
+                                 char fill)
+    {
+        std::ostringstream oss;
+        oss << std::fixed
+            << std::setw(width)
+            << std::setfill(fill)
+            << std::setprecision(precision) << val;
         return oss.str();
     }
 

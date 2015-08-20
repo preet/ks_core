@@ -272,6 +272,7 @@ namespace ks
                                 Level level);
 
             // logging methods
+            Line Custom(Level level);
             Line Trace();
             Line Debug();
             Line Info();

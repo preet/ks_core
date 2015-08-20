@@ -50,7 +50,7 @@ namespace ks
     }
 
     void Timer::Start(std::chrono::milliseconds interval_ms,
-               bool repeating)
+                      bool repeating)
     {
         m_interval_ms = interval_ms;
         m_repeating = repeating;

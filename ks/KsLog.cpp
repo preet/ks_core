@@ -205,6 +205,19 @@ namespace ks
         }
 
         // logging methods
+        Logger::Line Logger::Custom(Level level)
+        {
+            m_mutex->lock();
+
+            size_t const level_int = static_cast<size_t>(level);
+
+            return Line(&m_list_sinks,
+                        &(m_list_fb[level_int]),
+                        m_mutex.get(),
+                        m_filter[level_int]);
+        }
+
+
         Logger::Line Logger::Trace()
         {
             m_mutex->lock();
@@ -288,13 +301,22 @@ namespace ks
 #else
             make_shared<Log::SinkToStdOut>(), // log to stdout by default
 #endif
+//            {{ // array init-list
+//               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": TRACE: KS: ") },
+//               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": DEBUG: KS: ") },
+//               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": INFO:  KS: ") },
+//               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": WARN:  KS: ") },
+//               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": ERROR: KS: ") },
+//               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": FATAL: KS: ") }
+//             }});
+
             {{ // array init-list
-               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": TRACE: KS: ") },
-               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": DEBUG: KS: ") },
-               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": INFO:  KS: ") },
-               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": WARN:  KS: ") },
-               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": ERROR: KS: ") },
-               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": FATAL: KS: ") }
+               { new Log::FBCustomStr("TRACE: KS: ") },
+               { new Log::FBCustomStr("DEBUG: KS: ") },
+               { new Log::FBCustomStr("INFO:  KS: ") },
+               { new Log::FBCustomStr("WARN:  KS: ") },
+               { new Log::FBCustomStr("ERROR: KS: ") },
+               { new Log::FBCustomStr("FATAL: KS: ") }
              }});
 
 } // ks

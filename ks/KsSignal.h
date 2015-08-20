@@ -199,10 +199,12 @@ namespace ks
                                                            evl_running);
                         if(!evl_started) {
                             // TODO: Add a test for this case
-                            LOG.Error() << "Signal: Attempted to emit a Blocking "
-                                           "signal connected to a receiver with "
-                                           "an inactive event loop";
-                            return;
+//                            LOG.Trace() << "OMGOGMOMGOMGOMGOMGOMGOMG";
+                            throw EventLoopInactive(
+                                        "Signal: Attempted to emit a Blocking "
+                                        "signal connected to a receiver with "
+                                        "an inactive event loop");
+//                            return;
                         }
 
                         if(evl_thread_id == std::this_thread::get_id()) {

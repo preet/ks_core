@@ -7,8 +7,10 @@ PATH_KS_CORE = $${PWD}/ks
 HEADERS += \
     $${PATH_KS_CORE}/KsGlobal.h \
     $${PATH_KS_CORE}/KsLog.h \
+    $${PATH_KS_CORE}/KsException.h \
     $${PATH_KS_CORE}/KsMiscUtils.h \
     $${PATH_KS_CORE}/KsEvent.h \
+    $${PATH_KS_CORE}/KsTask.h \
     $${PATH_KS_CORE}/KsEventLoop.h \
     $${PATH_KS_CORE}/KsObject.h \
     $${PATH_KS_CORE}/KsSignal.h \
@@ -17,6 +19,8 @@ HEADERS += \
 
 SOURCES += \
     $${PATH_KS_CORE}/KsLog.cpp \
+    $${PATH_KS_CORE}/KsException.cpp \
+    $${PATH_KS_CORE}/KsTask.cpp \
     $${PATH_KS_CORE}/KsEventLoop.cpp \
     $${PATH_KS_CORE}/KsObject.cpp \
     $${PATH_KS_CORE}/KsSignal.cpp \
@@ -25,12 +29,12 @@ SOURCES += \
 
 test {
     # compile in catch
-    SOURCES += $${PATH_KS_CORE}/test/KsTest.cpp
+    SOURCES += $${PATH_KS_CORE}/test/KsAutoTest.cpp
 }
 
 test_core {
-    SOURCES += $${PATH_KS_CORE}/test/KsTestCore.cpp
-    SOURCES += $${PATH_KS_CORE}/test/KsTestProperties.cpp
+    SOURCES += $${PATH_KS_CORE}/test/KsAutoTestCore.cpp
+    SOURCES += $${PATH_KS_CORE}/test/KsAutoTestProperties.cpp
 }
 
 # thirdparty

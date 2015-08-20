@@ -24,12 +24,30 @@
 #include <vector>
 #include <condition_variable>
 
-#include <ks/KsGlobal.h>
+#include <ks/KsTask.h>
+#include <ks/KsException.h>
 
 namespace ks
 {
+    // ============================================================= //
+
+    class EventLoopCalledFromWrongThread : public ks::Exception
+    {
+    public:
+        EventLoopCalledFromWrongThread(std::string msg);
+        ~EventLoopCalledFromWrongThread() = default;
+    };
+
+    class EventLoopInactive : public ks::Exception
+    {
+    public:
+        EventLoopInactive(std::string msg);
+        ~EventLoopInactive() = default;
+    };
+
+    // ============================================================= //
+
     class Event;
-    class Task;
     class StartTimerEvent;
     class StopTimerEvent;
     struct TimerInfo;
@@ -56,30 +74,32 @@ namespace ks
                       bool& running);
 
         void Start();
-        void Run(bool *ok=nullptr);
+        void Run();
         void Stop();
         void Wait();
-        bool ProcessEvents();
+        void ProcessEvents();
         void PostEvent(unique_ptr<Event> event);
-        void PostEvent(shared_ptr<Task> event);
+        void PostTask(shared_ptr<Task> event);
         void PostStopEvent();
 
-        static std::thread LaunchInThread(shared_ptr<EventLoop> event_loop,
-                                          bool * ok = nullptr);
+        static std::thread LaunchInThread(shared_ptr<EventLoop> event_loop);
 
         static void RemoveFromThread(shared_ptr<EventLoop> event_loop,
                                      std::thread & thread,
                                      bool post_stop=false);
 
+    private:
         void waitUntilStarted();
         void waitUntilRunning();
         void waitUntilStopped();
-    private:
+
         void startTimer(unique_ptr<StartTimerEvent> event);
         void stopTimer(unique_ptr<StopTimerEvent> event);
         void setActiveThread();
         void unsetActiveThread();
-        bool checkActiveThread();
+
+        void ensureActiveLoop();
+        void ensureActiveThread();
 
         Id const m_id;
         std::thread::id const m_thread_id_null; // default id for 'no thread'

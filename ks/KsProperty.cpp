@@ -191,8 +191,6 @@ namespace ks
         list_rev_sorted_props.push_back(property);
     }
 
-    using sint = int32_t;
-
     void PropertyBase::evaluateOutputs()
     {
         // We do a topological sort (see ref1) on all of

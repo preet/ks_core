@@ -28,57 +28,33 @@ namespace ks
     class Task final
     {
     public:
-        Task(std::function<void()> task) :
-            m_task(std::move(task)),
-            m_future(m_promise.get_future()),
-            m_complete(false),
-            m_thread_id(std::this_thread::get_id())
-        {
+        enum class WaitStatus {
+            Finished,
+            Ready,
+            Timeout
+        };
 
-        }
+        Task(std::function<void()> task);
 
-        ~Task()
-        {
+        ~Task();
 
-        }
+        void Invoke();
 
-        void Invoke()
-        {
-            m_task();
-            m_promise.set_value();
-            m_complete = true;
-        }
+        // Wait on a task indefinitely.
+        // NOTE: Do NOT use the WaitFor function that takes wait_ms
+        // as an argument to try and wait indefinitely (ie. by setting
+        // wait_ms = milliseconds::max()) as this will cause an
+        // overflow (wait_for(t) == wait_until(now + t))!
+        WaitStatus Wait();
 
-        uint Wait(std::chrono::milliseconds wait_ms=
-                  std::chrono::milliseconds::max())
-        {
-            // m_future should always be valid as we
-            // set it during construction and never
-            // call get() on it (only wait())
-            // TODO do we care about std::future_status::deferred?
-            if((!m_complete) && m_future.valid()) {
-                auto fs = m_future.wait_for(wait_ms);
-                if(fs == std::future_status::ready) {
-                    return 1;
-                }
-                if(fs == std::future_status::timeout) {
-                    return 2;
-                }
-            }
-            return 0;
-        }
-
-        std::thread::id GetThreadId() const
-        {
-            return m_thread_id;
-        }
+        // Wait on a task for wait_ms milliseconds
+        WaitStatus WaitFor(std::chrono::milliseconds wait_ms);
 
     private:
         std::function<void()> m_task;
         std::promise<void> m_promise;
         std::future<void> m_future;
         std::atomic<bool> m_complete;
-        std::thread::id const m_thread_id;
     };
 
 

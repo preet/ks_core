@@ -26,9 +26,22 @@
 #include <ks/KsTask.h>
 #include <ks/KsTimer.h>
 #include <ks/KsEventLoop.h>
+#include <ks/KsException.h>
 
 namespace ks
 {
+    // ============================================================= //
+
+    EventLoopCalledFromWrongThread::EventLoopCalledFromWrongThread(std::string msg) :
+        Exception(ErrorLevel::FATAL,std::move(msg),true)
+    {}
+
+    EventLoopInactive::EventLoopInactive(std::string msg) :
+        Exception(ErrorLevel::WARN,std::move(msg),true)
+    {}
+
+    // ============================================================= //
+
     std::mutex EventLoop::s_id_mutex;
 
     // Start at one so that an Id of 0
@@ -171,7 +184,7 @@ namespace ks
 
     private:
         shared_ptr<Task> m_task;
-        asio::io_service * m_service;
+        asio::io_service* m_service;
     };
 
     // ============================================================= //
@@ -314,21 +327,14 @@ namespace ks
         m_cv_started.notify_all();
     }
 
-    void EventLoop::Run(bool* ok)
+    void EventLoop::Run()
     {
         {
             std::lock_guard<std::mutex> lock(m_mutex);
-            if(!(m_started && m_impl->m_asio_work)) {
-                if(ok) { *ok = false; }
-                return;
-            }
 
-            if(!checkActiveThread()) {
-                if(ok) { *ok = false; }
-                return;
-            }
+            ensureActiveLoop();
+            ensureActiveThread();
 
-            if(ok) { *ok = true; }
             m_running = true;
             m_cv_running.notify_all();
         }
@@ -354,23 +360,14 @@ namespace ks
     }
 
 
-    bool EventLoop::ProcessEvents()
+    void EventLoop::ProcessEvents()
     {
         {
             std::lock_guard<std::mutex> lock(m_mutex);
-
-            if(!(m_started && m_impl->m_asio_work)) {
-                LOG.Warn() << "EventLoop: ProcessEvents called but "
-                              "event loop has not been started";
-                return false;
-            }
-
-            if(!checkActiveThread()) {
-                return false;
-            }
+            ensureActiveLoop();
+            ensureActiveThread();
         }
         m_impl->m_asio_service.poll();
-        return true;
     }
 
     void EventLoop::PostEvent(unique_ptr<Event> event)
@@ -397,16 +394,18 @@ namespace ks
         }
     }
 
-    void EventLoop::PostEvent(shared_ptr<Task> task_event)
+    void EventLoop::PostTask(shared_ptr<Task> task)
     {
-        if(task_event->GetThreadId() == this->GetThreadId()) {
-            task_event->Invoke();
+        if(std::this_thread::get_id() == this->GetThreadId()) {
+            // Invoke right away to prevent deadlock in case
+            // the calling thread calls Wait() on the task
+            task->Invoke();
             return;
         }
 
         m_impl->m_asio_service.post(
                     TaskHandler(
-                        task_event,
+                        task,
                         &(m_impl->m_asio_service)));
     }
 
@@ -415,13 +414,13 @@ namespace ks
         m_impl->m_asio_service.post(std::bind(&EventLoop::Stop,this));
     }
 
-    std::thread EventLoop::LaunchInThread(shared_ptr<EventLoop> event_loop, bool *ok)
+    std::thread EventLoop::LaunchInThread(shared_ptr<EventLoop> event_loop)
     {
         std::thread thread(
-                    [event_loop,ok]
+                    [event_loop]
                     () {
                         event_loop->Start();
-                        event_loop->Run(ok);
+                        event_loop->Run();
                     });
 
         event_loop->waitUntilRunning();
@@ -475,18 +474,26 @@ namespace ks
         m_thread_id = calling_thread_id;
     }
 
-    bool EventLoop::checkActiveThread()
+    void EventLoop::ensureActiveThread()
     {
         auto const calling_thread_id = std::this_thread::get_id();
 
         // Ensure that the thread is this event loop's
         // active thread
         if(m_thread_id != calling_thread_id) {
-            LOG.Error() << "EventLoop: ProcessEvents/Run should only "
-                           "be called from the thread that called Start";
-            return false;
+            throw EventLoopCalledFromWrongThread(
+                        "EventLoop: ProcessEvents/Run called from "
+                        "a thread that did not start the event loop");
         }
-        return true;
+    }
+
+    void EventLoop::ensureActiveLoop()
+    {
+        if(!(m_started && m_impl->m_asio_work)) {
+            throw EventLoopInactive(
+                        "EventLoop: ProcessEvents/Run called but "
+                        "event loop has not been started");
+        }
     }
 
     void EventLoop::unsetActiveThread()

@@ -53,10 +53,13 @@ TEST_CASE("EventLoop","[evloop]")
 
         SECTION("ProcessEvents, Stop, Wait")
         {
-            LOG.Info() << "KsTest: Expect ProcessEvents without "
-                          "starting event loop warning";
-            event_loop->ProcessEvents();    // Should do nothing as the
-            event_loop->Stop();             // event loop was never started
+            LOG.Info() << "KsTest: Expect ProcessEvent/Run "
+                          "with inactive EventLoop error";
+
+            REQUIRE_THROWS_AS(event_loop->ProcessEvents(),
+                              EventLoopInactive);
+
+            event_loop->Stop();
             event_loop->Wait();
             REQUIRE(count==0);
         }
@@ -113,27 +116,29 @@ TEST_CASE("EventLoop","[evloop]")
 
             // Ensure that calling ProcessEvents from a second
             // thread without stopping the event loop is an error
-            bool ok = false;
             std::thread thread(
-                        [&ok,event_loop]
+                        [event_loop]
                         () {
-                            ok = event_loop->ProcessEvents();
+                            REQUIRE_THROWS_AS(event_loop->ProcessEvents(),
+                                              EventLoopCalledFromWrongThread);
                         });
 
-            REQUIRE_FALSE(ok);
             thread.join();
         }
 
         SECTION("Run")
         {
-            event_loop->Run();
+            LOG.Info() << "KsTest: Expect ProcessEvent/Run "
+                          "with inactive EventLoop error";
+
+            REQUIRE_THROWS_AS(event_loop->Run(),EventLoopInactive);
             REQUIRE(count==0); // didn't call Start yet
         }
 
         SECTION("Start (thread), Run (thread)")
         {
             bool ok = false;
-            std::thread thread = EventLoop::LaunchInThread(event_loop,&ok);
+            std::thread thread = EventLoop::LaunchInThread(event_loop);
 
             SECTION("Stop")
             {
@@ -195,6 +200,7 @@ TEST_CASE("EventLoop","[evloop]")
 // ============================================================= //
 // ============================================================= //
 
+
 TEST_CASE("Tasks","[tasks]")
 {
     bool ok = false;
@@ -212,7 +218,7 @@ TEST_CASE("Tasks","[tasks]")
     SECTION("Same thread")
     {
         evl->Start();
-        evl->PostEvent(some_task);
+        evl->PostTask(some_task);
         REQUIRE(some_work==1000);
 
         // We didn't call evl->ProcessEvents so the
@@ -222,8 +228,8 @@ TEST_CASE("Tasks","[tasks]")
 
     SECTION("Different thread")
     {
-        std::thread thread = EventLoop::LaunchInThread(evl,&ok);
-        evl->PostEvent(some_task);
+        std::thread thread = EventLoop::LaunchInThread(evl);
+        evl->PostTask(some_task);
 
         some_task->Wait();
         REQUIRE(some_work==1000);
@@ -231,6 +237,7 @@ TEST_CASE("Tasks","[tasks]")
         EventLoop::RemoveFromThread(evl,thread,true);
     }
 }
+
 
 // ============================================================= //
 // ============================================================= //
