@@ -2,7 +2,7 @@
 // buffer.hpp
 // ~~~~~~~~~~
 //
-// Copyright (c) 2003-2014 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2015 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -21,8 +21,6 @@
 #include <string>
 #include <vector>
 #include "asio/detail/array_fwd.hpp"
-#include "asio/detail/is_buffer_sequence.hpp"
-#include "asio/detail/type_traits.hpp"
 
 #if defined(ASIO_MSVC)
 # if defined(_HAS_ITERATOR_DEBUGGING) && (_HAS_ITERATOR_DEBUGGING != 0)
@@ -41,7 +39,7 @@
 #endif // defined(__GNUC__)
 
 #if defined(ASIO_ENABLE_BUFFER_DEBUGGING)
-# include "asio/detail/functional.hpp"
+# include "asio/detail/function.hpp"
 #endif // ASIO_ENABLE_BUFFER_DEBUGGING
 
 #if defined(ASIO_HAS_BOOST_WORKAROUND)
@@ -321,33 +319,8 @@ public:
   }
 };
 
-/// Trait to determine whether a type satisfies the MutableBufferSequence
-/// requirements.
-template <typename T>
-struct is_mutable_buffer_sequence
-#if defined(GENERATING_DOCUMENTATION)
-  : integral_constant<bool, automatically_determined>
-#else // defined(GENERATING_DOCUMENTATION)
-  : asio::detail::is_buffer_sequence<T, mutable_buffer>
-#endif // defined(GENERATING_DOCUMENTATION)
-{
-};
-
-/// Trait to determine whether a type satisfies the ConstBufferSequence
-/// requirements.
-template <typename T>
-struct is_const_buffer_sequence
-#if defined(GENERATING_DOCUMENTATION)
-  : integral_constant<bool, automatically_determined>
-#else // defined(GENERATING_DOCUMENTATION)
-  : asio::detail::is_buffer_sequence<T, const_buffer>
-#endif // defined(GENERATING_DOCUMENTATION)
-{
-};
-
-/// (Deprecated: Use the socket/descriptor wait() and async_wait() member
-/// functions.) An implementation of both the ConstBufferSequence and
-/// MutableBufferSequence concepts to represent a null buffer sequence.
+/// An implementation of both the ConstBufferSequence and MutableBufferSequence
+/// concepts to represent a null buffer sequence.
 class null_buffers
 {
 public:
@@ -410,10 +383,7 @@ inline std::size_t buffer_size(const const_buffers_1& b)
  * ConstBufferSequence or @c MutableBufferSequence type requirements.
  */
 template <typename BufferSequence>
-inline std::size_t buffer_size(const BufferSequence& b,
-    typename enable_if<
-      is_const_buffer_sequence<BufferSequence>::value
-    >::type* = 0)
+inline std::size_t buffer_size(const BufferSequence& b)
 {
   std::size_t total_buffer_size = 0;
 
@@ -1226,55 +1196,6 @@ inline const_buffers_1 buffer(
         ));
 }
 
-/// Create a new modifiable buffer that represents the given string.
-/**
- * @returns <tt>mutable_buffers_1(data.size() ? &data[0] : 0,
- * data.size() * sizeof(Elem))</tt>.
- *
- * @note The buffer is invalidated by any non-const operation called on the
- * given string object.
- */
-template <typename Elem, typename Traits, typename Allocator>
-inline mutable_buffers_1 buffer(
-    std::basic_string<Elem, Traits, Allocator>& data)
-{
-  return mutable_buffers_1(mutable_buffer(data.size() ? &data[0] : 0,
-        data.size() * sizeof(Elem)
-#if defined(ASIO_ENABLE_BUFFER_DEBUGGING)
-        , detail::buffer_debug_check<
-            typename std::basic_string<Elem, Traits, Allocator>::iterator
-          >(data.begin())
-#endif // ASIO_ENABLE_BUFFER_DEBUGGING
-        ));
-}
-
-/// Create a new non-modifiable buffer that represents the given string.
-/**
- * @returns A mutable_buffers_1 value equivalent to:
- * @code mutable_buffers_1(
- *     data.size() ? &data[0] : 0,
- *     min(data.size() * sizeof(Elem), max_size_in_bytes)); @endcode
- *
- * @note The buffer is invalidated by any non-const operation called on the
- * given string object.
- */
-template <typename Elem, typename Traits, typename Allocator>
-inline mutable_buffers_1 buffer(
-    std::basic_string<Elem, Traits, Allocator>& data,
-    std::size_t max_size_in_bytes)
-{
-  return mutable_buffers_1(
-      mutable_buffer(data.size() ? &data[0] : 0,
-        data.size() * sizeof(Elem) < max_size_in_bytes
-        ? data.size() * sizeof(Elem) : max_size_in_bytes
-#if defined(ASIO_ENABLE_BUFFER_DEBUGGING)
-        , detail::buffer_debug_check<
-            typename std::basic_string<Elem, Traits, Allocator>::iterator
-          >(data.begin())
-#endif // ASIO_ENABLE_BUFFER_DEBUGGING
-        ));
-}
-
 /// Create a new non-modifiable buffer that represents the given string.
 /**
  * @returns <tt>const_buffers_1(data.data(), data.size() * sizeof(Elem))</tt>.
@@ -1480,10 +1401,7 @@ inline std::size_t buffer_copy(const mutable_buffer& target,
  */
 template <typename ConstBufferSequence>
 std::size_t buffer_copy(const mutable_buffer& target,
-    const ConstBufferSequence& source,
-    typename enable_if<
-      is_const_buffer_sequence<ConstBufferSequence>::value
-    >::type* = 0)
+    const ConstBufferSequence& source)
 {
   std::size_t total_bytes_copied = 0;
 
@@ -1628,10 +1546,7 @@ inline std::size_t buffer_copy(const mutable_buffers_1& target,
  */
 template <typename ConstBufferSequence>
 inline std::size_t buffer_copy(const mutable_buffers_1& target,
-    const ConstBufferSequence& source,
-    typename enable_if<
-      is_const_buffer_sequence<ConstBufferSequence>::value
-    >::type* = 0)
+    const ConstBufferSequence& source)
 {
   return buffer_copy(static_cast<const mutable_buffer&>(target), source);
 }
@@ -1657,10 +1572,7 @@ inline std::size_t buffer_copy(const mutable_buffers_1& target,
  */
 template <typename MutableBufferSequence>
 std::size_t buffer_copy(const MutableBufferSequence& target,
-    const const_buffer& source,
-    typename enable_if<
-      is_mutable_buffer_sequence<MutableBufferSequence>::value
-    >::type* = 0)
+    const const_buffer& source)
 {
   std::size_t total_bytes_copied = 0;
 
@@ -1700,10 +1612,7 @@ std::size_t buffer_copy(const MutableBufferSequence& target,
  */
 template <typename MutableBufferSequence>
 inline std::size_t buffer_copy(const MutableBufferSequence& target,
-    const const_buffers_1& source,
-    typename enable_if<
-      is_mutable_buffer_sequence<MutableBufferSequence>::value
-    >::type* = 0)
+    const const_buffers_1& source)
 {
   return buffer_copy(target, static_cast<const const_buffer&>(source));
 }
@@ -1730,10 +1639,7 @@ inline std::size_t buffer_copy(const MutableBufferSequence& target,
  */
 template <typename MutableBufferSequence>
 inline std::size_t buffer_copy(const MutableBufferSequence& target,
-    const mutable_buffer& source,
-    typename enable_if<
-      is_mutable_buffer_sequence<MutableBufferSequence>::value
-    >::type* = 0)
+    const mutable_buffer& source)
 {
   return buffer_copy(target, const_buffer(source));
 }
@@ -1760,10 +1666,7 @@ inline std::size_t buffer_copy(const MutableBufferSequence& target,
  */
 template <typename MutableBufferSequence>
 inline std::size_t buffer_copy(const MutableBufferSequence& target,
-    const mutable_buffers_1& source,
-    typename enable_if<
-      is_mutable_buffer_sequence<MutableBufferSequence>::value
-    >::type* = 0)
+    const mutable_buffers_1& source)
 {
   return buffer_copy(target, const_buffer(source));
 }
@@ -1789,11 +1692,7 @@ inline std::size_t buffer_copy(const MutableBufferSequence& target,
  */
 template <typename MutableBufferSequence, typename ConstBufferSequence>
 std::size_t buffer_copy(const MutableBufferSequence& target,
-    const ConstBufferSequence& source,
-    typename enable_if<
-      is_mutable_buffer_sequence<MutableBufferSequence>::value &&
-      is_const_buffer_sequence<ConstBufferSequence>::value
-    >::type* = 0)
+    const ConstBufferSequence& source)
 {
   std::size_t total_bytes_copied = 0;
 
@@ -1980,10 +1879,7 @@ inline std::size_t buffer_copy(const mutable_buffer& target,
  */
 template <typename ConstBufferSequence>
 inline std::size_t buffer_copy(const mutable_buffer& target,
-    const ConstBufferSequence& source, std::size_t max_bytes_to_copy,
-    typename enable_if<
-      is_const_buffer_sequence<ConstBufferSequence>::value
-    >::type* = 0)
+    const ConstBufferSequence& source, std::size_t max_bytes_to_copy)
 {
   return buffer_copy(buffer(target, max_bytes_to_copy), source);
 }
@@ -2132,10 +2028,7 @@ inline std::size_t buffer_copy(const mutable_buffers_1& target,
  */
 template <typename ConstBufferSequence>
 inline std::size_t buffer_copy(const mutable_buffers_1& target,
-    const ConstBufferSequence& source, std::size_t max_bytes_to_copy,
-    typename enable_if<
-      is_const_buffer_sequence<ConstBufferSequence>::value
-    >::type* = 0)
+    const ConstBufferSequence& source, std::size_t max_bytes_to_copy)
 {
   return buffer_copy(buffer(target, max_bytes_to_copy), source);
 }
@@ -2166,10 +2059,7 @@ inline std::size_t buffer_copy(const mutable_buffers_1& target,
  */
 template <typename MutableBufferSequence>
 inline std::size_t buffer_copy(const MutableBufferSequence& target,
-    const const_buffer& source, std::size_t max_bytes_to_copy,
-    typename enable_if<
-      is_mutable_buffer_sequence<MutableBufferSequence>::value
-    >::type* = 0)
+    const const_buffer& source, std::size_t max_bytes_to_copy)
 {
   return buffer_copy(target, buffer(source, max_bytes_to_copy));
 }
@@ -2200,10 +2090,7 @@ inline std::size_t buffer_copy(const MutableBufferSequence& target,
  */
 template <typename MutableBufferSequence>
 inline std::size_t buffer_copy(const MutableBufferSequence& target,
-    const const_buffers_1& source, std::size_t max_bytes_to_copy,
-    typename enable_if<
-      is_mutable_buffer_sequence<MutableBufferSequence>::value
-    >::type* = 0)
+    const const_buffers_1& source, std::size_t max_bytes_to_copy)
 {
   return buffer_copy(target, buffer(source, max_bytes_to_copy));
 }
@@ -2235,10 +2122,7 @@ inline std::size_t buffer_copy(const MutableBufferSequence& target,
  */
 template <typename MutableBufferSequence>
 inline std::size_t buffer_copy(const MutableBufferSequence& target,
-    const mutable_buffer& source, std::size_t max_bytes_to_copy,
-    typename enable_if<
-      is_mutable_buffer_sequence<MutableBufferSequence>::value
-    >::type* = 0)
+    const mutable_buffer& source, std::size_t max_bytes_to_copy)
 {
   return buffer_copy(target, buffer(source, max_bytes_to_copy));
 }
@@ -2270,10 +2154,7 @@ inline std::size_t buffer_copy(const MutableBufferSequence& target,
  */
 template <typename MutableBufferSequence>
 inline std::size_t buffer_copy(const MutableBufferSequence& target,
-    const mutable_buffers_1& source, std::size_t max_bytes_to_copy,
-    typename enable_if<
-      is_mutable_buffer_sequence<MutableBufferSequence>::value
-    >::type* = 0)
+    const mutable_buffers_1& source, std::size_t max_bytes_to_copy)
 {
   return buffer_copy(target, buffer(source, max_bytes_to_copy));
 }
@@ -2304,11 +2185,7 @@ inline std::size_t buffer_copy(const MutableBufferSequence& target,
  */
 template <typename MutableBufferSequence, typename ConstBufferSequence>
 std::size_t buffer_copy(const MutableBufferSequence& target,
-    const ConstBufferSequence& source, std::size_t max_bytes_to_copy,
-    typename enable_if<
-      is_mutable_buffer_sequence<MutableBufferSequence>::value &&
-      is_const_buffer_sequence<ConstBufferSequence>::value
-    >::type* = 0)
+    const ConstBufferSequence& source, std::size_t max_bytes_to_copy)
 {
   std::size_t total_bytes_copied = 0;
 

@@ -79,7 +79,7 @@ namespace ks
         void Wait();
         void ProcessEvents();
         void PostEvent(unique_ptr<Event> event);
-        void PostTask(shared_ptr<Task> event);
+        void PostTask(shared_ptr<Task> task);
         void PostStopEvent();
 
         static std::thread LaunchInThread(shared_ptr<EventLoop> event_loop);

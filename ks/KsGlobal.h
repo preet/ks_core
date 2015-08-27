@@ -23,6 +23,7 @@
 #include <type_traits>
 #include <utility>
 #include <iomanip>
+#include <chrono>
 
 /// \namespace ks
 /// * The main namespace for lib ks
@@ -46,26 +47,34 @@
 /// \endcode
 namespace ks
 {
-    typedef unsigned int uint;
-    typedef std::uint8_t u8;
-    typedef std::uint16_t u16;
-    typedef std::uint32_t u32;
-    typedef std::uint64_t u64;
+    // Convenience typedefs
+    using uint = unsigned int;
+    using u8 = std::uint8_t;
+    using u16 = std::uint16_t;
+    using u32 = std::uint32_t;
+    using u64 = std::uint64_t;
 
-    typedef int sint;
-    typedef std::int8_t s8;
-    typedef std::int16_t s16;
-    typedef std::int32_t s32;
-    typedef std::int64_t s64;
+    using sint = int;
+    using s8 = std::int8_t;
+    using s16 = std::int16_t;
+    using s32 = std::int32_t;
+    using s64 = std::int64_t;
 
     /// * The standard data type for Ids in ks is a 64-bit
     ///   unsigned integer. Ids usually aren't recycled and
     ///   are simply incremented monotonically
-    typedef u64 Id;
+    using Id = u64;
 
     using std::shared_ptr;
     using std::unique_ptr;
     using std::weak_ptr;
+
+    // Note: each of the predefined duration types
+    // covers a range of at least ±292 years
+    using microseconds = std::chrono::microseconds;
+    using milliseconds = std::chrono::milliseconds;
+    using seconds = std::chrono::seconds;
+    using minutes = std::chrono::minutes;
 
     /// \cond HIDE_DOCS
     // make_unique for pre c++14 compilers

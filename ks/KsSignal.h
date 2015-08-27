@@ -21,9 +21,6 @@
 #include <vector>
 #include <mutex>
 #include <utility>
-#include <unordered_map>
-#include <set>
-#include <atomic>
 #include <type_traits>
 #include <algorithm>
 
@@ -34,7 +31,7 @@ namespace ks
 {
     // ============================================================= //
 
-    enum class ConnectionType
+    enum class ConnectionType : u8
     {
         Direct,
         Queued,
@@ -84,35 +81,130 @@ namespace ks
 
     // ============================================================= //
 
+    // * A simple empty ks::Object that can be used for a
+    //   signal's connection context.
+    // * Managed connections use the context object's EventLoop
+    //   for invoking Queued and Blocking methods
+    // * Managed connections expire (are automatically removed)
+    //   when the context object is deleted.
+    class ConnectionContext : ks::Object
+    {
+    public:
+        using base_type = ks::Object;
+
+        ConnectionContext(ks::Object::Key const &key,
+                         shared_ptr<EventLoop> evl) :
+            ks::Object(key,std::move(evl))
+        {}
+
+        void Init(ks::Object::Key const &,
+                  shared_ptr<ConnectionContext> const &)
+        {}
+
+        ~ConnectionContext() = default;
+    };
+
+    // ============================================================= //
+
     template<typename... Args>
     class Signal final
     {
-        struct Connection
+        struct ManagedConnection
         {
             Id id;
             ConnectionType type;
-            weak_ptr<Object> receiver;
-            std::function<void(Args&...)> slot;
+            weak_ptr<Object> context;
+            std::function<void(Args&...)> fn;
+        };
+
+        struct UnmanagedConnection
+        {
+            Id id;
+            std::function<void(Args&...)> fn;
         };
 
     public:       
-        Signal(unique_ptr<SignalMutex> connection_mutex=make_unique<DefaultSignalMutex>()) :
+        Signal(unique_ptr<SignalMutex> connection_mutex=
+               make_unique<DefaultSignalMutex>()) :
             m_connection_mutex(std::move(connection_mutex))
-        {
-            // empty
-        }
+        {}
 
         ~Signal()
+        {}
+
+        template<typename FunctionType>
+        Id Connect(FunctionType fn,
+                   shared_ptr<Object> const &context=nullptr,
+                   ConnectionType type=ConnectionType::Queued)
         {
-            // empty
+            std::lock_guard<SignalMutex> lock(*m_connection_mutex);
+            auto id = signal_detail::genId();
+
+            if(context) {
+                weak_ptr<Object> ctx(context);
+                m_list_managed_connections.emplace_back(
+                            ManagedConnection{
+                                id,
+                                type,
+                                ctx,
+                                [fn,ctx](Args&... args) {
+                                    auto is_alive = ctx.lock();
+                                    if(is_alive) {
+                                        fn(args...);
+                                    }
+                                }
+                            });
+            }
+            else {
+                m_list_unmanaged_connections.emplace_back(
+                            UnmanagedConnection{
+                                id,fn
+                            });
+            }
+
+            return id;
         }
 
-        // NOTE: SlotArgs is a separate template parameter
+        // NOTE: Fn/SlotArgs is a separate template parameter
         // here because it might not be equal to Signal<Args...>;
         // consider: Signal<Thing> and Slot(Thing const &)
+        template<typename T, typename... FnArgs>
+        Id Connect(T* object,
+                   void(T::*memfn)(FnArgs...),
+                   shared_ptr<Object> const &context=nullptr,
+                   ConnectionType type=ConnectionType::Queued)
+        {
+            std::lock_guard<SignalMutex> lock(*m_connection_mutex);
+            auto id = signal_detail::genId();
 
-        // Connect to a an event receiver's member function
-        // TODO: Connect for free functions
+            if(context) {
+                weak_ptr<Object> ctx(context);
+                m_list_managed_connections.emplace_back(
+                            ManagedConnection{
+                                id,
+                                type,
+                                ctx,
+                                [object,memfn,ctx](Args&... args) {
+                                    auto is_alive = ctx.lock();
+                                    if(is_alive) {
+                                        (object->*memfn)(args...);
+                                    }
+                                }
+                            });
+            }
+            else {
+                m_list_unmanaged_connections.emplace_back(
+                            UnmanagedConnection{
+                                id,
+                                [object,memfn](Args&... args) {
+                                    (object->*memfn)(args...);
+                                }
+                            });
+            }
+
+            return id;
+        }
+
         template<typename T, typename... SlotArgs>
         Id Connect(shared_ptr<T> const &receiver,
                    void (T::*slot)(SlotArgs...),
@@ -128,8 +220,8 @@ namespace ks
             weak_ptr<T> rcvr_weak_ptr(receiver);
 
             auto id = signal_detail::genId();
-            m_list_connections.emplace_back(
-                        Connection{
+            m_list_managed_connections.emplace_back(
+                        ManagedConnection{
                             id,
                             type,
                             receiver,               // receiver
@@ -148,12 +240,20 @@ namespace ks
         {
             std::lock_guard<SignalMutex> lock(*m_connection_mutex);
 
-            auto connection_it = findConnection(connection_id);
-
-            if(connection_it != m_list_connections.end()) {
-                m_list_connections.erase(connection_it);
+            auto managed_cnxn_it = findManagedConnection(connection_id);
+            if(managed_cnxn_it != m_list_managed_connections.end())
+            {
+                m_list_managed_connections.erase(managed_cnxn_it);
                 return true;
             }
+
+            auto unmanaged_cnxn_it = findUnmanagedConnection(connection_id);
+            if(unmanaged_cnxn_it != m_list_unmanaged_connections.end())
+            {
+                m_list_unmanaged_connections.erase(unmanaged_cnxn_it);
+                return true;
+            }
+
             return false;
         }
 
@@ -164,144 +264,170 @@ namespace ks
 
             std::lock_guard<SignalMutex> lock(*m_connection_mutex);
 
+            // Invoke unmananged connections
+            for(auto& connection : m_list_unmanaged_connections)
+            {
+                directInvoke(args...,connection.fn);
+            }
+
+            // Invoke/Schedule managed connections
             uint expired_count=0;
+            for(auto& connection : m_list_managed_connections)
+            {
+                auto context = connection.context.lock();
 
-            for(auto &connection : m_list_connections) {
-                auto receiver = connection.receiver.lock();
-                if(receiver) {
-                    if(connection.type == ConnectionType::Direct) {
-                        // invoke the slot directly
-                        directInvoke(args...,connection);
-                    }
-                    else if(connection.type == ConnectionType::Queued) {
-                        // post the slot to the receivers thread
-
-                        // NOTE: passing std::bind to make_unique
-                        // here causes an extra move so we use new
-                        unique_ptr<Event> event(new SlotEvent(
-                            std::bind(connection.slot,args...)));
-
-                        receiver->GetEventLoop()->PostEvent(std::move(event));
-                    }
-                    else {
-                        // Check if the receiver event loop is active
-
-                        // NOTE: Foregoing this check will result in deadlock if
-                        // the event loop is inactive. The check is not mandatory
-                        // if it can be guaranteed no blocking signals will be
-                        // emitted before the required event loops have started.
-
-                        std::thread::id evl_thread_id;
-                        bool evl_started;
-                        bool evl_running;
-                        receiver->GetEventLoop()->GetState(evl_thread_id,
-                                                           evl_started,
-                                                           evl_running);
-                        if(!evl_started) {
-                            // TODO: Add a test for this case
-//                            LOG.Trace() << "OMGOGMOMGOMGOMGOMGOMGOMG";
-                            throw EventLoopInactive(
-                                        "Signal: Attempted to emit a Blocking "
-                                        "signal connected to a receiver with "
-                                        "an inactive event loop");
-//                            return;
-                        }
-
-                        if(evl_thread_id == std::this_thread::get_id()) {
-                            // TODO:
-                            // We could potentially process any queued events
-                            // here first before invoking the slot:
-                            //
-                            // receiver->GetEventLoop()->ProcessEvents();
-                            //
-                            // However:
-                            // * Processing events might cause this signal's
-                            //   Emit() to be called recursively which could
-                            //   cause a deadlock (we could work around this
-                            //   by using recursive mutexes though)
-                            // * Chains of blocking queued signals result in
-                            //   multiple levels of recursion
-
-                            // invoke this slot directly
-                            directInvoke(args...,connection);
-                        }
-                        else {
-                            // post the slot to the receivers thread
-                            // and block until its invoked
-                            bool invoked = false;
-                            std::mutex invoked_mutex;
-                            std::condition_variable invoked_cv;
-
-                            unique_ptr<Event> event(new BlockingSlotEvent(
-                                std::bind(connection.slot,args...),
-                                &invoked,
-                                &invoked_mutex,
-                                &invoked_cv));
-
-                            std::unique_lock<std::mutex> invoked_lock(invoked_mutex);
-                            receiver->GetEventLoop()->PostEvent(std::move(event));
-
-                            while(!invoked) {
-                                invoked_cv.wait(invoked_lock);
-                            }
-                        }
-                    }
-                }
-                else {
+                if(context==nullptr)
+                {
                     // If the receiver for this connection has been
                     // destroyed, mark the connection as expired
                     expired_count++;
+                    continue;
+                }
+
+                if(connection.type == ConnectionType::Direct)
+                {
+                    directInvoke(args...,connection.fn);
+                }
+                else if(connection.type == ConnectionType::Queued)
+                {
+                    // Post the slot to the receivers thread
+                    unique_ptr<Event> event(new SlotEvent(
+                        std::bind(connection.fn,args...)));
+
+                    context->GetEventLoop()->PostEvent(std::move(event));
+                }
+                else // ConnectionType::Blocking
+                {
+                    // Check if the receiver event loop is active
+
+                    // NOTE: Foregoing this check will result in deadlock if
+                    // the event loop is inactive. The check is not mandatory
+                    // if it can be guaranteed no blocking signals will be
+                    // emitted before the required event loops have started.
+
+                    std::thread::id evl_thread_id;
+                    bool evl_started;
+                    bool evl_running;
+                    context->GetEventLoop()->GetState(evl_thread_id,
+                                                      evl_started,
+                                                      evl_running);
+
+                    if(!evl_started) {
+                        // TODO: Add a test for this case
+                        throw EventLoopInactive(
+                                    "Signal: Attempted to emit a Blocking "
+                                    "signal connected to a receiver with "
+                                    "an inactive event loop");
+                    }
+
+                    if(evl_thread_id == std::this_thread::get_id()) {
+                        // TODO:
+                        // We could potentially process any queued events
+                        // here first before invoking the slot:
+                        //
+                        // receiver->GetEventLoop()->ProcessEvents();
+                        //
+                        // However:
+                        // * Processing events might cause this signal's
+                        //   Emit() to be called recursively which could
+                        //   cause a deadlock (we could work around this
+                        //   by using recursive mutexes though)
+                        // * Chains of blocking queued signals result in
+                        //   multiple levels of recursion
+
+                        // invoke this slot directly
+                        directInvoke(args...,connection.fn);
+                    }
+                    else {
+                        // post the slot to the receivers thread
+                        // and block until its invoked
+                        bool invoked = false;
+                        std::mutex invoked_mutex;
+                        std::condition_variable invoked_cv;
+
+                        unique_ptr<Event> event(new BlockingSlotEvent(
+                            std::bind(connection.fn,args...),
+                            &invoked,
+                            &invoked_mutex,
+                            &invoked_cv));
+
+                        std::unique_lock<std::mutex> invoked_lock(invoked_mutex);
+                        context->GetEventLoop()->PostEvent(std::move(event));
+
+                        while(!invoked) {
+                            invoked_cv.wait(invoked_lock);
+                        }
+                    }
                 }
             }
 
             // Remove any expired connections
             if(expired_count > 0) {
                 auto remove_begin = std::remove_if(
-                            m_list_connections.begin(),
-                            m_list_connections.end(),
-                            [](Connection const &connection) {
-                                return (connection.receiver.expired());
+                            m_list_managed_connections.begin(),
+                            m_list_managed_connections.end(),
+                            [](ManagedConnection const &connection) {
+                                return (connection.context.expired());
                             });
 
-                m_list_connections.erase(
+                m_list_managed_connections.erase(
                             remove_begin,
-                            m_list_connections.end());
+                            m_list_managed_connections.end());
             }
         }
 
-        bool ConnectionValid(Id cid)
+        bool ConnectionValid(Id connection_id)
         {
             std::lock_guard<SignalMutex> lock(*m_connection_mutex);
 
-            if(findConnection(cid) != m_list_connections.end()) {
-                return true;
+            auto managed_cnxn_it = findManagedConnection(connection_id);
+            if(managed_cnxn_it == m_list_managed_connections.end())
+            {
+                auto unmanaged_cnxn_it = findUnmanagedConnection(connection_id);
+                if(unmanaged_cnxn_it == m_list_unmanaged_connections.end())
+                {
+                    return false;
+                }
             }
-            return false;
+
+            return true;
         }
 
         uint GetConnectionCount()
         {
             std::lock_guard<SignalMutex> lock(*m_connection_mutex);
-
-            return m_list_connections.size();
+            return m_list_managed_connections.size()+
+                   m_list_unmanaged_connections.size();
         }
 
     private:
-        void directInvoke(Args... args, Connection &connection)
+        void directInvoke(Args... args,std::function<void(Args&...)> &fn)
         {
-            connection.slot(args...);
+            fn(args...);
         }
 
-        // * not thread safe, lock @m_connection_mutex
-        //   before calling this method
-        typename std::vector<Connection>::iterator
-        findConnection(Id connection_id)
+        typename std::vector<ManagedConnection>::iterator
+        findManagedConnection(Id connection_id)
         {
             auto connection_it = std::find_if(
-                        m_list_connections.begin(),
-                        m_list_connections.end(),
+                        m_list_managed_connections.begin(),
+                        m_list_managed_connections.end(),
                         [connection_id]
-                        (Connection const &connection) {
+                        (ManagedConnection const &connection) {
+                            return (connection.id == connection_id);
+                        });
+
+            return connection_it;
+        }
+
+        typename std::vector<UnmanagedConnection>::iterator
+        findUnmanagedConnection(Id connection_id)
+        {
+            auto connection_it = std::find_if(
+                        m_list_unmanaged_connections.begin(),
+                        m_list_unmanaged_connections.end(),
+                        [connection_id]
+                        (UnmanagedConnection const &connection) {
                             return (connection.id == connection_id);
                         });
 
@@ -310,27 +436,11 @@ namespace ks
 
         // Connections
         unique_ptr<SignalMutex> m_connection_mutex;
-        std::vector<Connection> m_list_connections;
+        std::vector<ManagedConnection> m_list_managed_connections;
+        std::vector<UnmanagedConnection> m_list_unmanaged_connections;
     };
 
     // ============================================================= //
-
-    // NOTE: --- start bug workaround ---
-    // For Signal::Emit(...)
-    // gcc (at least until 4.8.2) has a bug that
-    // prevents it from capturing parameter packs
-    // with lambdas, so we use std::bind instead
-
-    // TODO: bind might be slower so maybe prefer
-    // that only if parameter pack lambda capture
-    // isn't supported? (I think bind requires an
-    // extra move to convert -> function<void()>)
-
-    // auto s = make_unique<SlotEvent>(
-    //             [connection, args...]() {
-    //     connection.slot(args...);
-    // });
-    // -- end bug work around ---
 
 } // ks
 

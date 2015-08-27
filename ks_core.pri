@@ -14,7 +14,6 @@ HEADERS += \
     $${PATH_KS_CORE}/KsEventLoop.h \
     $${PATH_KS_CORE}/KsObject.h \
     $${PATH_KS_CORE}/KsSignal.h \
-    $${PATH_KS_CORE}/KsProperty.h \
     $${PATH_KS_CORE}/KsTimer.h
 
 SOURCES += \
@@ -24,7 +23,6 @@ SOURCES += \
     $${PATH_KS_CORE}/KsEventLoop.cpp \
     $${PATH_KS_CORE}/KsObject.cpp \
     $${PATH_KS_CORE}/KsSignal.cpp \
-    $${PATH_KS_CORE}/KsProperty.cpp \
     $${PATH_KS_CORE}/KsTimer.cpp
 
 test {
@@ -34,7 +32,6 @@ test {
 
 test_core {
     SOURCES += $${PATH_KS_CORE}/test/KsAutoTestCore.cpp
-    SOURCES += $${PATH_KS_CORE}/test/KsAutoTestProperties.cpp
 }
 
 # thirdparty

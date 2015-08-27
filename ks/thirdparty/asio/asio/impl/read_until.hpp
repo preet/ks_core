@@ -2,7 +2,7 @@
 // impl/read_until.hpp
 // ~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2014 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2015 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -19,8 +19,6 @@
 #include <string>
 #include <vector>
 #include <utility>
-#include "asio/associated_allocator.hpp"
-#include "asio/associated_executor.hpp"
 #include "asio/buffer.hpp"
 #include "asio/buffers_iterator.hpp"
 #include "asio/detail/bind_handler.hpp"
@@ -493,44 +491,6 @@ namespace detail
   }
 } // namespace detail
 
-#if !defined(GENERATING_DOCUMENTATION)
-
-template <typename AsyncReadStream, typename Allocator,
-    typename ReadHandler, typename Allocator1>
-struct associated_allocator<
-    detail::read_until_delim_op<AsyncReadStream, Allocator, ReadHandler>,
-    Allocator1>
-{
-  typedef typename associated_allocator<ReadHandler, Allocator1>::type type;
-
-  static type get(
-      const detail::read_until_delim_op<
-        AsyncReadStream, Allocator, ReadHandler>& h,
-      const Allocator1& a = Allocator1()) ASIO_NOEXCEPT
-  {
-    return associated_allocator<ReadHandler, Allocator1>::get(h.handler_, a);
-  }
-};
-
-template <typename AsyncReadStream, typename Executor,
-    typename ReadHandler, typename Executor1>
-struct associated_executor<
-    detail::read_until_delim_op<AsyncReadStream, Executor, ReadHandler>,
-    Executor1>
-{
-  typedef typename associated_executor<ReadHandler, Executor1>::type type;
-
-  static type get(
-      const detail::read_until_delim_op<
-        AsyncReadStream, Executor, ReadHandler>& h,
-      const Executor1& ex = Executor1()) ASIO_NOEXCEPT
-  {
-    return associated_executor<ReadHandler, Executor1>::get(h.handler_, ex);
-  }
-};
-
-#endif // !defined(GENERATING_DOCUMENTATION)
-
 template <typename AsyncReadStream, typename Allocator, typename ReadHandler>
 ASIO_INITFN_RESULT_TYPE(ReadHandler,
     void (asio::error_code, std::size_t))
@@ -542,8 +502,9 @@ async_read_until(AsyncReadStream& s,
   // not meet the documented type requirements for a ReadHandler.
   ASIO_READ_HANDLER_CHECK(ReadHandler, handler) type_check;
 
-  async_completion<ReadHandler,
-    void (asio::error_code, std::size_t)> init(handler);
+  detail::async_result_init<
+    ReadHandler, void (asio::error_code, std::size_t)> init(
+      ASIO_MOVE_CAST(ReadHandler)(handler));
 
   detail::read_until_delim_op<AsyncReadStream,
     Allocator, ASIO_HANDLER_TYPE(ReadHandler,
@@ -733,46 +694,6 @@ namespace detail
   }
 } // namespace detail
 
-#if !defined(GENERATING_DOCUMENTATION)
-
-template <typename AsyncReadStream, typename Allocator,
-    typename ReadHandler, typename Allocator1>
-struct associated_allocator<
-    detail::read_until_delim_string_op<
-      AsyncReadStream, Allocator, ReadHandler>,
-    Allocator1>
-{
-  typedef typename associated_allocator<ReadHandler, Allocator1>::type type;
-
-  static type get(
-      const detail::read_until_delim_string_op<
-        AsyncReadStream, Allocator, ReadHandler>& h,
-      const Allocator1& a = Allocator1()) ASIO_NOEXCEPT
-  {
-    return associated_allocator<ReadHandler, Allocator1>::get(h.handler_, a);
-  }
-};
-
-template <typename AsyncReadStream, typename Executor,
-    typename ReadHandler, typename Executor1>
-struct associated_executor<
-    detail::read_until_delim_string_op<
-      AsyncReadStream, Executor, ReadHandler>,
-    Executor1>
-{
-  typedef typename associated_executor<ReadHandler, Executor1>::type type;
-
-  static type get(
-      const detail::read_until_delim_string_op<
-        AsyncReadStream, Executor, ReadHandler>& h,
-      const Executor1& ex = Executor1()) ASIO_NOEXCEPT
-  {
-    return associated_executor<ReadHandler, Executor1>::get(h.handler_, ex);
-  }
-};
-
-#endif // !defined(GENERATING_DOCUMENTATION)
-
 template <typename AsyncReadStream, typename Allocator, typename ReadHandler>
 ASIO_INITFN_RESULT_TYPE(ReadHandler,
     void (asio::error_code, std::size_t))
@@ -784,8 +705,9 @@ async_read_until(AsyncReadStream& s,
   // not meet the documented type requirements for a ReadHandler.
   ASIO_READ_HANDLER_CHECK(ReadHandler, handler) type_check;
 
-  async_completion<ReadHandler,
-    void (asio::error_code, std::size_t)> init(handler);
+  detail::async_result_init<
+    ReadHandler, void (asio::error_code, std::size_t)> init(
+      ASIO_MOVE_CAST(ReadHandler)(handler));
 
   detail::read_until_delim_string_op<AsyncReadStream,
     Allocator, ASIO_HANDLER_TYPE(ReadHandler,
@@ -984,44 +906,6 @@ namespace detail
   }
 } // namespace detail
 
-#if !defined(GENERATING_DOCUMENTATION)
-
-template <typename AsyncReadStream, typename Allocator,
-    typename RegEx, typename ReadHandler, typename Allocator1>
-struct associated_allocator<
-    detail::read_until_expr_op<AsyncReadStream, Allocator, RegEx, ReadHandler>,
-    Allocator1>
-{
-  typedef typename associated_allocator<ReadHandler, Allocator1>::type type;
-
-  static type get(
-      const detail::read_until_expr_op<AsyncReadStream,
-        Allocator, RegEx, ReadHandler>& h,
-      const Allocator1& a = Allocator1()) ASIO_NOEXCEPT
-  {
-    return associated_allocator<ReadHandler, Allocator1>::get(h.handler_, a);
-  }
-};
-
-template <typename AsyncReadStream, typename Executor,
-    typename RegEx, typename ReadHandler, typename Executor1>
-struct associated_executor<
-    detail::read_until_expr_op<AsyncReadStream, Executor, RegEx, ReadHandler>,
-    Executor1>
-{
-  typedef typename associated_executor<ReadHandler, Executor1>::type type;
-
-  static type get(
-      const detail::read_until_expr_op<AsyncReadStream,
-        Executor, RegEx, ReadHandler>& h,
-      const Executor1& ex = Executor1()) ASIO_NOEXCEPT
-  {
-    return associated_executor<ReadHandler, Executor1>::get(h.handler_, ex);
-  }
-};
-
-#endif // !defined(GENERATING_DOCUMENTATION)
-
 template <typename AsyncReadStream, typename Allocator, typename ReadHandler>
 ASIO_INITFN_RESULT_TYPE(ReadHandler,
     void (asio::error_code, std::size_t))
@@ -1033,8 +917,9 @@ async_read_until(AsyncReadStream& s,
   // not meet the documented type requirements for a ReadHandler.
   ASIO_READ_HANDLER_CHECK(ReadHandler, handler) type_check;
 
-  async_completion<ReadHandler,
-    void (asio::error_code, std::size_t)> init(handler);
+  detail::async_result_init<
+    ReadHandler, void (asio::error_code, std::size_t)> init(
+      ASIO_MOVE_CAST(ReadHandler)(handler));
 
   detail::read_until_expr_op<AsyncReadStream, Allocator,
     boost::regex, ASIO_HANDLER_TYPE(ReadHandler,
@@ -1229,46 +1114,6 @@ namespace detail
   }
 } // namespace detail
 
-#if !defined(GENERATING_DOCUMENTATION)
-
-template <typename AsyncReadStream, typename Allocator,
-    typename MatchCondition, typename ReadHandler, typename Allocator1>
-struct associated_allocator<
-    detail::read_until_match_op<AsyncReadStream,
-      Allocator, MatchCondition, ReadHandler>,
-    Allocator1>
-{
-  typedef typename associated_allocator<ReadHandler, Allocator1>::type type;
-
-  static type get(
-      const detail::read_until_match_op<AsyncReadStream,
-        Allocator, MatchCondition, ReadHandler>& h,
-      const Allocator1& a = Allocator1()) ASIO_NOEXCEPT
-  {
-    return associated_allocator<ReadHandler, Allocator1>::get(h.handler_, a);
-  }
-};
-
-template <typename AsyncReadStream, typename Executor,
-    typename MatchCondition, typename ReadHandler, typename Executor1>
-struct associated_executor<
-    detail::read_until_match_op<AsyncReadStream,
-      Executor, MatchCondition, ReadHandler>,
-    Executor1>
-{
-  typedef typename associated_executor<ReadHandler, Executor1>::type type;
-
-  static type get(
-      const detail::read_until_match_op<AsyncReadStream,
-        Executor, MatchCondition, ReadHandler>& h,
-      const Executor1& ex = Executor1()) ASIO_NOEXCEPT
-  {
-    return associated_executor<ReadHandler, Executor1>::get(h.handler_, ex);
-  }
-};
-
-#endif // !defined(GENERATING_DOCUMENTATION)
-
 template <typename AsyncReadStream, typename Allocator,
     typename MatchCondition, typename ReadHandler>
 ASIO_INITFN_RESULT_TYPE(ReadHandler,
@@ -1282,8 +1127,9 @@ async_read_until(AsyncReadStream& s,
   // not meet the documented type requirements for a ReadHandler.
   ASIO_READ_HANDLER_CHECK(ReadHandler, handler) type_check;
 
-  async_completion<ReadHandler,
-    void (asio::error_code, std::size_t)> init(handler);
+  detail::async_result_init<
+    ReadHandler, void (asio::error_code, std::size_t)> init(
+      ASIO_MOVE_CAST(ReadHandler)(handler));
 
   detail::read_until_match_op<AsyncReadStream, Allocator,
     MatchCondition, ASIO_HANDLER_TYPE(ReadHandler,

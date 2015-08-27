@@ -28,7 +28,8 @@ namespace ks
     class Task final
     {
     public:
-        enum class WaitStatus {
+        enum class WaitStatus
+        {
             Finished,
             Ready,
             Timeout

@@ -412,6 +412,27 @@ public:
     std::string misc_string;
 };
 
+
+
+namespace test_signals
+{
+    uint g_counter{0};
+
+    void Increment()
+    {
+        g_counter++;
+    }
+
+    class IncrementObject
+    {
+    public:
+        void Increment()
+        {
+            g_counter++;
+        }
+    };
+}
+
 // ============================================================= //
 
 TEST_CASE("Signals","[signals]")
@@ -421,6 +442,31 @@ TEST_CASE("Signals","[signals]")
     SECTION("Connect/Disconnect")
     {
         std::thread thread0 = EventLoop::LaunchInThread(event_loop);
+
+        SECTION("Unmanaged Connections")
+        {
+            Signal<> signal_count;
+            uint& counter = test_signals::g_counter;
+
+            // lambda
+            signal_count.Connect(
+                        [&counter](){
+                            counter++;
+                        });
+
+            // free function
+            signal_count.Connect(
+                        &test_signals::Increment);
+
+            // member function
+            test_signals::IncrementObject object;
+            signal_count.Connect(
+                        &object,
+                        &test_signals::IncrementObject::Increment);
+
+            signal_count.Emit();
+            REQUIRE(counter == 3);
+        }
 
         shared_ptr<TrivialReceiver> receiver =
                 make_object<TrivialReceiver>(event_loop);

@@ -1,6 +1,7 @@
-# asio v 1.10.2
+# asio v 1.10.6
 
-DEFINES += ASIO_STANDALONE  # builds without boost deps using c++11 instead
+# builds without boost deps using c++11 instead
+DEFINES += ASIO_STANDALONE
 
 PATH_ASIO = $${PWD}
 INCLUDEPATH += $${PATH_ASIO}
