@@ -14,15 +14,15 @@
    limitations under the License.
 */
 
-#ifndef KS_EVENT_H
-#define KS_EVENT_H
+#ifndef KS_EVENT_HPP
+#define KS_EVENT_HPP
 
 #include <functional>
 #include <condition_variable>
 #include <future>
 
-#include <ks/KsGlobal.h>
-#include <ks/KsLog.h>
+#include <ks/KsGlobal.hpp>
+#include <ks/KsLog.hpp>
 
 namespace ks
 {
@@ -223,4 +223,4 @@ namespace ks
 
 } // ks
 
-#endif // KS_EVENT_H
+#endif // KS_EVENT_HPP

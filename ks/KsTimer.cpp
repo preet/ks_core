@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-#include <ks/KsTimer.h>
+#include <ks/KsTimer.hpp>
 
 namespace ks
 {

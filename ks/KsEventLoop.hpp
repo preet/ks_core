@@ -14,8 +14,8 @@
    limitations under the License.
 */
 
-#ifndef KS_EVENT_LOOP_H
-#define KS_EVENT_LOOP_H
+#ifndef KS_EVENT_LOOP_HPP
+#define KS_EVENT_LOOP_HPP
 
 #include <atomic>
 #include <thread>
@@ -24,8 +24,8 @@
 #include <vector>
 #include <condition_variable>
 
-#include <ks/KsTask.h>
-#include <ks/KsException.h>
+#include <ks/KsTask.hpp>
+#include <ks/KsException.hpp>
 
 namespace ks
 {
@@ -121,4 +121,4 @@ namespace ks
     };
 } // ks
 
-#endif // KS_EVENT_LOOP_H
+#endif // KS_EVENT_LOOP_HPP

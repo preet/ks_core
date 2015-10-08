@@ -14,12 +14,12 @@
    limitations under the License.
 */
 
-#ifndef KS_MISC_UTILS_H
-#define KS_MISC_UTILS_H
+#ifndef KS_MISC_UTILS_HPP
+#define KS_MISC_UTILS_HPP
 
 #include <fstream>
 
-#include <ks/KsGlobal.h>
+#include <ks/KsGlobal.hpp>
 
 namespace ks
 {
@@ -97,4 +97,4 @@ namespace ks
     }
 }
 
-#endif // KS_MISC_UTILS_H
+#endif // KS_MISC_UTILS_HPP

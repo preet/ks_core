@@ -14,12 +14,8 @@
    limitations under the License.
 */
 
-#ifndef KS_LOG_H
-#define KS_LOG_H
-
-#ifdef KS_ENV_ANDROID
-#include <android/log.h>
-#endif
+#ifndef KS_LOG_HPP
+#define KS_LOG_HPP
 
 #include <string>
 #include <vector>
@@ -29,11 +25,12 @@
 #include <bitset>
 #include <iostream>
 
-#include <ks/KsGlobal.h>
+#include <ks/KsConfig.hpp>
+#include <ks/KsGlobal.hpp>
 
 namespace ks
 {
-    namespace Log
+    namespace Log // TODO fix this namespace!
     {
         // ============================================================= //
 
@@ -62,19 +59,14 @@ namespace ks
         private:
             std::mutex m_mutex;
         };
-        
+
         #ifdef KS_ENV_ANDROID
         // SinkToLogCat
         // * simple sink that outputs to logcat
         class SinkToLogCat : public ks::Log::Sink
         {
-        public:
-            void log(std::string const &line)
-            {
-                m_mutex.lock();
-				__android_log_print(ANDROID_LOG_VERBOSE,"ks",line.c_str());
-                m_mutex.unlock();
-            }
+        public:           
+            void log(std::string const &line);
 
         private:
             std::mutex m_mutex;
@@ -298,4 +290,4 @@ namespace ks
 
 } // ks
 
-#endif // SCRATCH_INLINE_LOG_H
+#endif // KS_LOG_HPP

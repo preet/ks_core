@@ -21,12 +21,12 @@
 #include <ks/thirdparty/asio/asio.hpp>
 
 // ks
-#include <ks/KsLog.h>
-#include <ks/KsEvent.h>
-#include <ks/KsTask.h>
-#include <ks/KsTimer.h>
-#include <ks/KsEventLoop.h>
-#include <ks/KsException.h>
+#include <ks/KsLog.hpp>
+#include <ks/KsEvent.hpp>
+#include <ks/KsTask.hpp>
+#include <ks/KsTimer.hpp>
+#include <ks/KsEventLoop.hpp>
+#include <ks/KsException.hpp>
 
 namespace ks
 {
@@ -340,6 +340,8 @@ namespace ks
         }
 
         m_impl->m_asio_service.run(); // blocks!
+
+        std::lock_guard<std::mutex> lock(m_mutex);
         m_running = false;
     }
 

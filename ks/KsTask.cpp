@@ -14,8 +14,8 @@
    limitations under the License.
 */
 
-#include <ks/KsTask.h>
-#include <ks/KsLog.h>
+#include <ks/KsTask.hpp>
+#include <ks/KsLog.hpp>
 
 namespace ks
 {

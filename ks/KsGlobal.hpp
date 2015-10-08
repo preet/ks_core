@@ -14,8 +14,8 @@
    limitations under the License.
 */
 
-#ifndef KS_GLOBAL_H
-#define KS_GLOBAL_H
+#ifndef KS_GLOBAL_HPP
+#define KS_GLOBAL_HPP
 
 #include <cstdint>
 #include <memory>
@@ -150,4 +150,4 @@ namespace ks
 
 } // ks
 
-#endif // KS_GLOBAL_H
+#endif // KS_GLOBAL_HPP

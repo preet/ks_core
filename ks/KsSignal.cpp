@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-#include <ks/KsSignal.h>
+#include <ks/KsSignal.hpp>
 
 namespace ks 
 {

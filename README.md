@@ -1,19 +1,19 @@
-![ks logo](http://preet.github.io/images/kslogo.png) 
-
 ### What is ks?
-ks is a small generic helper lib that provides basic signals/slots and timers through event loops. It is greatly inspired by the Qt framework (but doesn't provide any of its advanced features like introspection)
+ks is a small cross platform c++ library that can be used to help create applications and libraries.
+
+### What is ks_core?
+The core module provides signals and slots with event loops, inspired by the Qt framework.
 
 ### License
 ks is licensed under the Apache License, version 2.0. For more information see the LICENSE file.
 
 ### Dependencies
-ks is written in c++11 and requires a modern compiler. Tested with gcc 4.8.2. Other dependencies include:
+A modern c++11 compiler is required. Other dependencies include:
 
 * [**asio**](http://www.think-async.com) (boost software license): used for event loops and timers
-* [**catch**](https://github.com/philsquared/Catch) (boost software license): for testing only, not required to use ks
 
 ### Building
-ks is currently built using qmake but it should be straightforward to build using any build tools. The files can be directly added to any project and the dependencies (asio and catch) are header-only.
+ks_core has a qmake pri file that can be added to a qmake project. The only dependency (asio) is header only and included in the module.
 
 ### Documentation
-Currently TODO. See ks/test/KsTest.cpp for some examples.
+TODO. See the ks_test module for some examples

@@ -14,34 +14,29 @@
    limitations under the License.
 */
 
-#include <ks/KsException.hpp>
+#ifndef KS_EXCEPTION_HPP
+#define KS_EXCEPTION_HPP
+
+#include <exception>
+#include <ks/KsLog.hpp>
 
 namespace ks
 {
-    const std::vector<std::string> Exception::m_lkup_err_lvl {
-        "TRACE: ",
-        "DEBUG: ",
-        "INFO:  ",
-        "WARN:  ",
-        "ERROR: ",
-        "FATAL: "
+    class Exception : public std::exception
+    {
+    public:
+        using ErrorLevel = ks::Log::Logger::Level;
+
+        Exception();
+        Exception(ErrorLevel err_lvl,std::string msg,bool stack_trace=false);
+        virtual ~Exception();
+
+        virtual const char* what() const noexcept;
+
+    protected:
+        static std::vector<std::string> const m_lkup_err_lvl;
+        std::string m_msg;
     };
-
-    Exception::Exception()
-    {}
-
-    Exception::Exception(ErrorLevel err_lvl, std::string msg, bool stack_trace)
-    {
-        (void)stack_trace; // TODO
-        LOG.Custom(err_lvl) << msg;
-        m_msg = m_lkup_err_lvl[static_cast<u8>(err_lvl)] + msg;
-    }
-
-    Exception::~Exception()
-    {}
-
-    const char* Exception::what() const noexcept
-    {
-        return m_msg.c_str();
-    }
 }
+
+#endif // KS_EXCEPTION_HPP

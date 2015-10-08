@@ -14,8 +14,8 @@
    limitations under the License.
 */
 
-#ifndef KS_SIGNAL_H
-#define KS_SIGNAL_H
+#ifndef KS_SIGNAL_HPP
+#define KS_SIGNAL_HPP
 
 #include <functional>
 #include <vector>
@@ -24,8 +24,8 @@
 #include <type_traits>
 #include <algorithm>
 
-#include <ks/KsEvent.h>
-#include <ks/KsObject.h>
+#include <ks/KsEvent.hpp>
+#include <ks/KsObject.hpp>
 
 namespace ks
 {
@@ -87,7 +87,7 @@ namespace ks
     //   for invoking Queued and Blocking methods
     // * Managed connections expire (are automatically removed)
     //   when the context object is deleted.
-    class ConnectionContext : ks::Object
+    class ConnectionContext : public ks::Object
     {
     public:
         using base_type = ks::Object;
@@ -444,4 +444,4 @@ namespace ks
 
 } // ks
 
-#endif // KS_SIGNAL_H
+#endif // KS_SIGNAL_HPP

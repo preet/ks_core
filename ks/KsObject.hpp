@@ -14,16 +14,16 @@
    limitations under the License.
 */
 
-#ifndef KS_OBJECT_H
-#define KS_OBJECT_H
+#ifndef KS_OBJECT_HPP
+#define KS_OBJECT_HPP
 
 #include <vector>
 #include <mutex>
 #include <atomic>
 #include <typeindex>
 
-#include <ks/KsGlobal.h>
-#include <ks/KsEventLoop.h>
+#include <ks/KsGlobal.hpp>
+#include <ks/KsEventLoop.hpp>
 
 namespace ks
 {
@@ -47,7 +47,7 @@ namespace ks
     ///   during construction
     /// * An example on how to inherit from Object and use make_object:
     /// \code
-    /// #include <ks/KsObject.h>
+    /// #include <ks/KsObject.hpp>
     ///
     /// class Derived : public ks::Object
     /// {
@@ -239,4 +239,4 @@ namespace ks
 
 } // ks
 
-#endif // KS_OBJECT_H
+#endif // KS_OBJECT_HPP

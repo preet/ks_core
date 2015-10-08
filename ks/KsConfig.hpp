@@ -14,29 +14,25 @@
    limitations under the License.
 */
 
-#ifndef KS_EXCEPTION_H
-#define KS_EXCEPTION_H
+#ifndef KS_CONFIG_HPP
+#define KS_CONFIG_HPP
 
-#include <exception>
-#include <ks/KsLog.h>
+// platforms
+#if defined(__ANDROID__)
+    #define KS_ENV_ANDROID 1
+#elif defined(__linux__)
+    #define KS_ENV_LINUX 1
+#elif defined(__APPLE__) && defined(__MACH__)
+    #include <TargetConditionals.h>
+    #if TARGET_OS_IPHONE == 1
+        #define KS_ENV_APPLE_IOS 1
+    #elif TARGET_OS_MAC == 1
+        #define KS_ENV_APPLE_OSX 1
+    #endif
+#endif
 
-namespace ks
-{
-    class Exception : public std::exception
-    {
-    public:
-        using ErrorLevel = ks::Log::Logger::Level;
+// thirdparty
+// builds without boost deps using c++11 instead
+#define ASIO_STANDALONE 1
 
-        Exception();
-        Exception(ErrorLevel err_lvl,std::string msg,bool stack_trace=false);
-        virtual ~Exception();
-
-        virtual const char* what() const noexcept;
-
-    protected:
-        static std::vector<std::string> const m_lkup_err_lvl;
-        std::string m_msg;
-    };
-}
-
-#endif // KS_EXCEPTION_H
+#endif // KS_CONFIG_HPP

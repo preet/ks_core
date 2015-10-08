@@ -14,14 +14,14 @@
    limitations under the License.
 */
 
-#ifndef KS_TASK_H
-#define KS_TASK_H
+#ifndef KS_TASK_HPP
+#define KS_TASK_HPP
 
 #include <functional>
 #include <condition_variable>
 #include <future>
 
-#include <ks/KsGlobal.h>
+#include <ks/KsGlobal.hpp>
 
 namespace ks
 {
@@ -61,4 +61,4 @@ namespace ks
 
 } // ks
 
-#endif // KS_TASK_H
+#endif // KS_TASK_HPP

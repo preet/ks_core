@@ -5,16 +5,17 @@ PATH_KS_CORE = $${PWD}/ks
 
 # core
 HEADERS += \
-    $${PATH_KS_CORE}/KsGlobal.h \
-    $${PATH_KS_CORE}/KsLog.h \
-    $${PATH_KS_CORE}/KsException.h \
-    $${PATH_KS_CORE}/KsMiscUtils.h \
-    $${PATH_KS_CORE}/KsEvent.h \
-    $${PATH_KS_CORE}/KsTask.h \
-    $${PATH_KS_CORE}/KsEventLoop.h \
-    $${PATH_KS_CORE}/KsObject.h \
-    $${PATH_KS_CORE}/KsSignal.h \
-    $${PATH_KS_CORE}/KsTimer.h
+    $${PATH_KS_CORE}/KsConfig.hpp \
+    $${PATH_KS_CORE}/KsGlobal.hpp \
+    $${PATH_KS_CORE}/KsLog.hpp \
+    $${PATH_KS_CORE}/KsException.hpp \
+    $${PATH_KS_CORE}/KsMiscUtils.hpp \
+    $${PATH_KS_CORE}/KsEvent.hpp \
+    $${PATH_KS_CORE}/KsTask.hpp \
+    $${PATH_KS_CORE}/KsEventLoop.hpp \
+    $${PATH_KS_CORE}/KsObject.hpp \
+    $${PATH_KS_CORE}/KsSignal.hpp \
+    $${PATH_KS_CORE}/KsTimer.hpp
 
 SOURCES += \
     $${PATH_KS_CORE}/KsLog.cpp \
@@ -25,21 +26,11 @@ SOURCES += \
     $${PATH_KS_CORE}/KsSignal.cpp \
     $${PATH_KS_CORE}/KsTimer.cpp
 
-test {
-    # compile in catch
-    SOURCES += $${PATH_KS_CORE}/test/KsAutoTest.cpp
-}
-
-test_core {
-    SOURCES += $${PATH_KS_CORE}/test/KsAutoTestCore.cpp
-}
-
 # thirdparty
 include($${PATH_KS_CORE}/thirdparty/asio/asio.pri)
 
-# need these flags for gcc 4.8.x bug for threads
+# need to link pthreads to use std::thread
 !android {
-    QMAKE_LFLAGS += -Wl,--no-as-needed
     LIBS += -lpthread
 }
 

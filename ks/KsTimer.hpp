@@ -14,11 +14,11 @@
    limitations under the License.
 */
 
-#ifndef KS_TIMER_H
-#define KS_TIMER_H
+#ifndef KS_TIMER_HPP
+#define KS_TIMER_HPP
 
-#include <ks/KsObject.h>
-#include <ks/KsSignal.h>
+#include <ks/KsObject.hpp>
+#include <ks/KsSignal.hpp>
 
 namespace ks
 {
@@ -63,4 +63,4 @@ namespace ks
 
 } // ks
 
-#endif // KS_TIMER_H
+#endif // KS_TIMER_HPP

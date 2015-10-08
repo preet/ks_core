@@ -14,8 +14,8 @@
    limitations under the License.
 */
 
-#include <ks/KsObject.h>
-#include <ks/KsLog.h>
+#include <ks/KsObject.hpp>
+#include <ks/KsLog.hpp>
 
 namespace ks
 {
