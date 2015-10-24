@@ -17,7 +17,7 @@
 #include <ks/KsLog.hpp>
 
 #ifdef KS_ENV_ANDROID
-#include <android/log.hpp>
+#include <android/log.h>
 #endif
 
 namespace ks
