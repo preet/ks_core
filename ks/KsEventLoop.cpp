@@ -122,29 +122,23 @@ namespace ks
                 return;
             }
 
-            // Emit the timeout signal
-            timer->signal_timeout.Emit();
-
             // If this is a repeating timer, post another timeout
             if(m_timerinfo->repeat) {
                 TimerInfo * timerinfo = m_timerinfo.get();
 
-                // TODO this should be adjusted based on the actual
-                // amount of time that has elapsed (or maybe add a
-                // 'drift correction' option?)
                 timerinfo->asio_timer.expires_from_now(
                             timerinfo->interval_ms);
 
                 timerinfo->asio_timer.async_wait(
                             TimeoutHandler(m_timerinfo,true));
-
-//                m_timerinfo->asio_timer.async_wait(
-//                            TimeoutHandler(m_timerinfo,false));
             }
             else {
                 // mark inactive
                 timer->m_active = false;
             }
+
+            // Emit the timeout signal
+            timer->signal_timeout.Emit();
         }
 
     private:
