@@ -89,7 +89,7 @@ namespace ks
     public:
         StartTimerEvent(Id timer_id,
                         weak_ptr<Timer> timer,
-                        std::chrono::milliseconds interval_ms,
+                        Milliseconds interval_ms,
                         bool repeating) :
             Event(Event::Type::StartTimer),
             m_timer_id(timer_id),
@@ -115,7 +115,7 @@ namespace ks
             return m_timer;
         }
 
-        std::chrono::milliseconds GetInterval() const
+        Milliseconds GetInterval() const
         {
             return m_interval_ms;
         }
@@ -128,7 +128,7 @@ namespace ks
     private:
         Id const m_timer_id;
         weak_ptr<Timer> const m_timer;
-        std::chrono::milliseconds const m_interval_ms;
+        Milliseconds const m_interval_ms;
         bool const m_repeating;
     };
 

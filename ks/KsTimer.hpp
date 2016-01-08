@@ -42,13 +42,13 @@ namespace ks
 
         ~Timer();
 
-        std::chrono::milliseconds GetInterval() const;
+        Milliseconds GetInterval() const;
 
         bool GetRepeating() const;
 
         bool GetActive() const;
 
-        void Start(std::chrono::milliseconds interval_ms,
+        void Start(Milliseconds interval_ms,
                    bool repeating);
 
         void Stop();
@@ -56,7 +56,7 @@ namespace ks
         Signal<> signal_timeout;
 
     private:
-        std::chrono::milliseconds m_interval_ms;
+        Milliseconds m_interval_ms;
         bool m_repeating;
         std::atomic<bool> m_active;
     };

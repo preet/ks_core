@@ -71,10 +71,15 @@ namespace ks
 
     // Note: each of the predefined duration types
     // covers a range of at least ±292 years
-    using microseconds = std::chrono::microseconds;
-    using milliseconds = std::chrono::milliseconds;
-    using seconds = std::chrono::seconds;
-    using minutes = std::chrono::minutes;
+    using Microseconds = std::chrono::microseconds;
+    using Milliseconds = std::chrono::milliseconds;
+    using Seconds = std::chrono::seconds;
+    using Minutes = std::chrono::minutes;
+    using Hours = std::chrono::hours;
+
+    using TimePoint =
+        std::chrono::time_point<
+            std::chrono::high_resolution_clock>;
 
     /// \cond HIDE_DOCS
     // make_unique for pre c++14 compilers
@@ -106,28 +111,11 @@ namespace ks
     // is more syntactically consistent
     using std::make_shared;
 
-    /// * This class wraps shared_ptr but requires a unique_ptr to construct
-    /// * It forces the function calling Signal.Emit(emit_ptr<...>) to give up
-    ///   ownership of whatever is passed to Emit
-    template<typename T>
-    class emit_ptr
-    {
-    public:
-        emit_ptr(unique_ptr<T> ptr) :
-            m_ptr(ptr.release())
-        {
-            // empty
-        }
-
-    private:
-        shared_ptr<T> m_ptr;
-    };
-
     /// * Converts common types to std::string
     /// * Included instead of using std::to_string because the latter
     ///   is missing on Android
     template<typename T>
-    std::string to_string(T const &val)
+    std::string ToString(T const &val)
     {
         std::ostringstream oss;
         oss << val;
@@ -135,10 +123,10 @@ namespace ks
     }
 
     template<typename T>
-    std::string to_string_format(T const &val,
-                                 uint precision,
-                                 uint width,
-                                 char fill)
+    std::string ToStringFormat(T const &val,
+                               uint precision,
+                               uint width,
+                               char fill)
     {
         std::ostringstream oss;
         oss << std::fixed

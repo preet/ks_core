@@ -37,7 +37,7 @@ void CountThenReturn(uint * count)
 TEST_CASE("EventLoop","[evloop]")
 {
     uint count = 0;
-    std::chrono::milliseconds sleep_ms(10);
+    Milliseconds sleep_ms(10);
     auto count_then_ret = std::bind(CountThenReturn,&count);
 
     shared_ptr<EventLoop> event_loop = make_shared<EventLoop>();
@@ -378,7 +378,7 @@ public:
         // after the string append (ie. its queued), the string
         // would be 01234
         signal_self.Emit(x+1,event_loop);
-        misc_string.append(ks::to_string(x));
+        misc_string.append(ks::ToString(x));
     }
 
     void SlotSignalSelfBlocking(uint x, EventLoop * event_loop)
@@ -402,7 +402,7 @@ public:
         // after the string append (ie. its queued), the string
         // would be 01234
         signal_self.Emit(x+1,event_loop);
-        misc_string.append(ks::to_string(x));
+        misc_string.append(ks::ToString(x));
     }
 
     void SlotPrintAndCheckThreadId(std::string str,
@@ -789,7 +789,7 @@ public:
         }
     }
 
-    void OnSleepFor(std::chrono::milliseconds sleep_ms)
+    void OnSleepFor(Milliseconds sleep_ms)
     {
         std::this_thread::sleep_for(sleep_ms);
     }
@@ -836,13 +836,13 @@ TEST_CASE("ks::Timer","[timers]") {
         }
 
         SECTION("start/stop fuzz inactive") {
-            timer->Start(std::chrono::milliseconds(10),false);
-            timer->Start(std::chrono::milliseconds(10),false);
+            timer->Start(Milliseconds(10),false);
+            timer->Start(Milliseconds(10),false);
             timer->Stop();
             timer->Stop();
-            timer->Start(std::chrono::milliseconds(10),false);
+            timer->Start(Milliseconds(10),false);
             timer->Stop();
-            timer->Start(std::chrono::milliseconds(10),false);
+            timer->Start(Milliseconds(10),false);
             timer->Stop();
             shared_ptr<Timer> timer = nullptr;
         }
@@ -869,14 +869,14 @@ TEST_CASE("ks::Timer","[timers]") {
             std::chrono::time_point<std::chrono::steady_clock> start,end;
             start = std::chrono::steady_clock::now();
 
-            timer->Start(std::chrono::milliseconds(50),false);
+            timer->Start(Milliseconds(50),false);
             receiver->Prepare(1); // wait for 1 timeout signal
             receiver->Block();
 
             end = std::chrono::steady_clock::now();
-            std::chrono::milliseconds interval_ms =
+            Milliseconds interval_ms =
                     std::chrono::duration_cast<
-                        std::chrono::milliseconds
+                        Milliseconds
                     >(end-start);
 
             // The single shot timer should have marked the
@@ -897,15 +897,15 @@ TEST_CASE("ks::Timer","[timers]") {
             start = std::chrono::steady_clock::now();
 
             receiver->Prepare(1); // wait for 1 timeout signal
-            timer->Start(std::chrono::milliseconds(50),false);
-            timer->Start(std::chrono::milliseconds(60),false);
-            timer->Start(std::chrono::milliseconds(70),false);
+            timer->Start(Milliseconds(50),false);
+            timer->Start(Milliseconds(60),false);
+            timer->Start(Milliseconds(70),false);
             receiver->Block();
 
             end = std::chrono::steady_clock::now();
             interval_ms =
                     std::chrono::duration_cast<
-                        std::chrono::milliseconds
+                        Milliseconds
                     >(end-start);
 
             // The single shot timer should have marked the
@@ -926,13 +926,13 @@ TEST_CASE("ks::Timer","[timers]") {
             start = std::chrono::steady_clock::now();
 
             receiver->Prepare(3); // wait for 3 timeout signals
-            timer->Start(std::chrono::milliseconds(33),true);
+            timer->Start(Milliseconds(33),true);
             receiver->Block();
 
             end = std::chrono::steady_clock::now();
-            std::chrono::milliseconds interval_ms =
+            Milliseconds interval_ms =
                     std::chrono::duration_cast<
-                        std::chrono::milliseconds
+                        Milliseconds
                     >(end-start);
 
             // repeat timer should stay active until
@@ -962,7 +962,7 @@ TEST_CASE("ks::Timer","[timers]") {
 
             // emit a signal to put the receiver's event loop's
             // thread to sleep
-            Signal<std::chrono::milliseconds> SignalSleepFor;
+            Signal<Milliseconds> SignalSleepFor;
             SignalSleepFor.Connect(
                         receiver,
                         &WakeupReceiver::OnSleepFor);
@@ -970,15 +970,15 @@ TEST_CASE("ks::Timer","[timers]") {
             std::chrono::time_point<std::chrono::steady_clock> start,end;
             start = std::chrono::steady_clock::now();
 
-            SignalSleepFor.Emit(std::chrono::milliseconds(25));
-            timer->Start(std::chrono::milliseconds(25),false);
+            SignalSleepFor.Emit(Milliseconds(25));
+            timer->Start(Milliseconds(25),false);
             receiver->Prepare(1);
             receiver->Block();
 
             end = std::chrono::steady_clock::now();
-            std::chrono::milliseconds interval_ms =
+            Milliseconds interval_ms =
                     std::chrono::duration_cast<
-                        std::chrono::milliseconds
+                        Milliseconds
                     >(end-start);
 
             // Cleanup

@@ -194,7 +194,7 @@ namespace ks
                 Line & operator << (T const &msg)
                 {
                     if(m_line_valid) {
-                        m_line.append(to_string(msg));
+                        m_line.append(ToString(msg));
                     }
                     return *this;
                 }

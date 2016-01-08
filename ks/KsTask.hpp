@@ -49,7 +49,7 @@ namespace ks
         WaitStatus Wait();
 
         // Wait on a task for wait_ms milliseconds
-        WaitStatus WaitFor(std::chrono::milliseconds wait_ms);
+        WaitStatus WaitFor(Milliseconds wait_ms);
 
     private:
         std::function<void()> m_task;

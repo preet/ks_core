@@ -63,7 +63,7 @@ namespace ks
         TimerInfo(Id id,
                   weak_ptr<Timer> timer,
                   asio::io_service & service,
-                  std::chrono::milliseconds interval_ms,
+                  Milliseconds interval_ms,
                   bool repeat) :
             id(id),
             timer(timer),
@@ -77,7 +77,7 @@ namespace ks
 
         Id id;
         weak_ptr<Timer> timer;
-        std::chrono::milliseconds interval_ms;
+        Milliseconds interval_ms;
         asio::steady_timer asio_timer;
         bool repeat;
         bool canceled;

@@ -53,7 +53,7 @@ namespace ks
         return WaitStatus::Ready;
     }
 
-    Task::WaitStatus Task::WaitFor(std::chrono::milliseconds wait_ms)
+    Task::WaitStatus Task::WaitFor(Milliseconds wait_ms)
     {      
         if(m_complete) {
             return WaitStatus::Finished;

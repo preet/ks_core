@@ -49,7 +49,7 @@ namespace ks
         return m_active;
     }
 
-    void Timer::Start(std::chrono::milliseconds interval_ms,
+    void Timer::Start(Milliseconds interval_ms,
                       bool repeating)
     {
         m_interval_ms = interval_ms;
