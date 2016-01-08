@@ -142,8 +142,7 @@ namespace ks
             for(uint level=0; level < 6; level++) {
                 for(uint fb_idx=0; fb_idx < list_fbs[level].size(); fb_idx++) {
                     m_list_fb[level].push_back(
-                                std::move(unique_ptr<FormatBlock>(
-                                              list_fbs[level][fb_idx])));
+                                unique_ptr<FormatBlock>(list_fbs[level][fb_idx]));
                 }
             }
 
@@ -314,22 +313,22 @@ namespace ks
 #else
             make_shared<Log::SinkToStdOut>(), // log to stdout by default
 #endif
-//            {{ // array init-list
-//               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": TRACE: KS: ") },
-//               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": DEBUG: KS: ") },
-//               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": INFO:  KS: ") },
-//               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": WARN:  KS: ") },
-//               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": ERROR: KS: ") },
-//               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": FATAL: KS: ") }
-//             }});
-
             {{ // array init-list
-               { new Log::FBCustomStr("TRACE: KS: ") },
-               { new Log::FBCustomStr("DEBUG: KS: ") },
-               { new Log::FBCustomStr("INFO:  KS: ") },
-               { new Log::FBCustomStr("WARN:  KS: ") },
-               { new Log::FBCustomStr("ERROR: KS: ") },
-               { new Log::FBCustomStr("FATAL: KS: ") }
+               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": TRACE: KS: ") },
+               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": DEBUG: KS: ") },
+               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": INFO:  KS: ") },
+               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": WARN:  KS: ") },
+               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": ERROR: KS: ") },
+               { new Log::FBRunTimeMs(), new Log::FBCustomStr(": FATAL: KS: ") }
              }});
+
+//            {{ // array init-list
+//               { new Log::FBCustomStr("TRACE: KS: ") },
+//               { new Log::FBCustomStr("DEBUG: KS: ") },
+//               { new Log::FBCustomStr("INFO:  KS: ") },
+//               { new Log::FBCustomStr("WARN:  KS: ") },
+//               { new Log::FBCustomStr("ERROR: KS: ") },
+//               { new Log::FBCustomStr("FATAL: KS: ") }
+//             }});
 
 } // ks
