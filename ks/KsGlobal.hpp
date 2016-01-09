@@ -136,6 +136,12 @@ namespace ks
         return oss.str();
     }
 
+    template<typename T>
+    T CalcDuration(TimePoint const &before,TimePoint const &after)
+    {
+        return std::chrono::duration_cast<T>(after-before);
+    }
+
 } // ks
 
 #endif // KS_GLOBAL_HPP
