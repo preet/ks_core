@@ -35,7 +35,7 @@ namespace ks
 
     /// * The base object class for slots. Any class wishing to use
     ///   slots to connect to signals must inherit Object
-    /// * All Object-derived classes must be created with make_object
+    /// * All Object-derived classes must be created with MakeObject
     ///   and should not be constructed otherwise, or moved or copied
     /// * All Objects are created as shared_ptrs to facilitate
     ///   lifetime tracking. This allows Signals to safely remove
@@ -45,7 +45,7 @@ namespace ks
     ///   Signal connections will be automatically cleaned up
     /// * Each Object has a non-recycled unique Id assigned to it
     ///   during construction
-    /// * An example on how to inherit from Object and use make_object:
+    /// * An example on how to inherit from Object and use MakeObject:
     /// \code
     /// #include <ks/KsObject.hpp>
     ///
@@ -54,13 +54,13 @@ namespace ks
     /// public:
     ///    // All classes that inherit ks::Object must define
     ///    // base_type to be the immediate base class of the
-    ///    // class. This is required by ks::make_object to init
+    ///    // class. This is required by ks::MakeObject to init
     ///    // the object.
     ///    using base_type = Object; // or the immediate Base class
     ///
     ///    // Constructors must have *Object::Key const &* as their
     ///    // first parameter. This enforces creation of all Objects
-    ///    // and any derivatives through ks::make_object
+    ///    // and any derivatives through ks::MakeObject
     ///    Derived(Key const &key,
     ///            shared_ptr<ks::EventLoop> const &evloop,
     ///            /* other args */) :
@@ -87,7 +87,7 @@ namespace ks
     ///    void Init(Key const &,shared_ptr<DerivedAgain>) {}
     /// };
     /// \endcode
-    /// * Using make_object:
+    /// * Using MakeObject:
     /// \code
     /// // Create an event loop
     /// ks::shared_ptr<ks::EventLoop> ev_loop =
@@ -95,9 +95,9 @@ namespace ks
     ///
     /// // Create the object
     /// // Note that Object::Key is not passed to the params;
-    /// // its the responsibility of make_object to add this
+    /// // its the responsibility of MakeObject to add this
     /// ks::shared_ptr<DerivedAgain> =
-    ///    ks::make_object<DerivedAgain>(ev_loop,...);
+    ///    ks::MakeObject<DerivedAgain>(ev_loop,...);
     /// \endcode
     class Object : public std::enable_shared_from_this<Object>
     {
@@ -107,7 +107,7 @@ namespace ks
         // TODO desc
         class Key {
             template<typename T, typename... Args>
-            friend std::shared_ptr<T> make_object(Args&& ...args);
+            friend std::shared_ptr<T> MakeObject(Args&& ...args);
 
             Key() {} // private constructor
         };
@@ -116,7 +116,7 @@ namespace ks
         /// \param key
         ///     The construction/init key needed to create this
         ///     object (pass-key idiom). Enforces creation through
-        ///     ks::make_object(...)
+        ///     ks::MakeObject(...)
         /// \param event_loop
         ///     The event loop that will handle events,
         ///     for this object including slot callbacks
@@ -151,20 +151,20 @@ namespace ks
 
     // ============================================================= //
 
-    /// * make_object **must** be called to create any
+    /// * MakeObject **must** be called to create any
     ///   ks::Object-derived object
-    /// * Details: make_object is required because:
+    /// * Details: MakeObject is required because:
     ///   - Object-derived classes must be wrapped in a shared_ptr to
     ///     connect to any Signals
     ///   - shared_ptrs to an object cannot be used within its own
     ///     constructor
-    /// * As a result, make_object does two phase construction where
+    /// * As a result, MakeObject does two phase construction where
     ///   normal construction can occur in the constructor, and Signal
     ///   related setup can occur in Object::Init()
     /// * Note that the args param does not contain Object::Key, as
-    ///   this is inserted by make_object
+    ///   this is inserted by MakeObject
     template<typename T, typename... Args>
-    std::shared_ptr<T> make_object(Args&&...args)
+    std::shared_ptr<T> MakeObject(Args&&...args)
     {
         Object::Key key; // creation key
 

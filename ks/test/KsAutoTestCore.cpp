@@ -309,13 +309,13 @@ public:
 
 TEST_CASE("Objects","[objects]")
 {
-    // Check construction and init order for make_object
+    // Check construction and init order for MakeObject
     // with inheritance chains
 
     std::string const expect_create =
             "Construct0Construct1Init0Init1";
 
-    shared_ptr<Derived1> d1 = make_object<Derived1>();
+    shared_ptr<Derived1> d1 = MakeObject<Derived1>();
     bool ok = (expect_create == d1->m_create);
 
     REQUIRE(ok);
@@ -486,7 +486,7 @@ TEST_CASE("Signals","[signals]")
         }
 
         shared_ptr<TrivialReceiver> receiver =
-                make_object<TrivialReceiver>(event_loop);
+                MakeObject<TrivialReceiver>(event_loop);
 
         Signal<bool*> signal_check;
         Signal<EventLoop*> signal_stop;
@@ -543,7 +543,7 @@ TEST_CASE("Signals","[signals]")
 
         {
             shared_ptr<TrivialReceiver> temp_receiver =
-                    make_object<TrivialReceiver>(event_loop);
+                    MakeObject<TrivialReceiver>(event_loop);
 
             cid0 = signal_check.Connect(
                         temp_receiver,
@@ -573,7 +573,7 @@ TEST_CASE("Signals","[signals]")
 
         // r0
         shared_ptr<TrivialReceiver> r0 =
-                make_object<TrivialReceiver>(event_loop);
+                MakeObject<TrivialReceiver>(event_loop);
 
         size_t const one_one_count = 100;
 
@@ -596,9 +596,9 @@ TEST_CASE("Signals","[signals]")
         // test 1 signal -> 4 slots
 
         // add receivers
-        shared_ptr<TrivialReceiver> r1 = make_object<TrivialReceiver>(event_loop);
-        shared_ptr<TrivialReceiver> r2 = make_object<TrivialReceiver>(event_loop);
-        shared_ptr<TrivialReceiver> r3 = make_object<TrivialReceiver>(event_loop);
+        shared_ptr<TrivialReceiver> r1 = MakeObject<TrivialReceiver>(event_loop);
+        shared_ptr<TrivialReceiver> r2 = MakeObject<TrivialReceiver>(event_loop);
+        shared_ptr<TrivialReceiver> r3 = MakeObject<TrivialReceiver>(event_loop);
 
         // zero count
         r0->invoke_count = 0;
@@ -634,7 +634,7 @@ TEST_CASE("Signals","[signals]")
         std::thread thread = EventLoop::LaunchInThread(event_loop);
 
         shared_ptr<TrivialReceiver> receiver =
-                make_object<TrivialReceiver>(event_loop);
+                MakeObject<TrivialReceiver>(event_loop);
 
         SECTION("Direct connection")
         {
@@ -824,7 +824,7 @@ TEST_CASE("ks::Timer","[timers]") {
                 make_shared<EventLoop>();
 
         shared_ptr<Timer> timer =
-                make_object<Timer>(event_loop);
+                MakeObject<Timer>(event_loop);
 
         SECTION("destroy inactive") {
             shared_ptr<Timer> timer = nullptr;
@@ -855,10 +855,10 @@ TEST_CASE("ks::Timer","[timers]") {
         std::thread thread = EventLoop::LaunchInThread(event_loop);
 
         shared_ptr<Timer> timer =
-                make_object<Timer>(event_loop);
+                MakeObject<Timer>(event_loop);
 
         shared_ptr<WakeupReceiver> receiver =
-                make_object<WakeupReceiver>(event_loop);
+                MakeObject<WakeupReceiver>(event_loop);
 
         timer->signal_timeout.Connect(
                     receiver,
