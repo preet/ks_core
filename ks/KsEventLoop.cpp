@@ -405,6 +405,16 @@ namespace ks
                         &(m_impl->m_asio_service)));
     }
 
+    void EventLoop::PostCallback(std::function<void()> callback)
+    {
+        unique_ptr<Event> event = make_unique<SlotEvent>(std::move(callback));
+
+        m_impl->m_asio_service.post(
+                    EventHandler(
+                        event,
+                        &(m_impl->m_asio_service)));
+    }
+
     void EventLoop::PostStopEvent()
     {
         m_impl->m_asio_service.post(std::bind(&EventLoop::Stop,this));
